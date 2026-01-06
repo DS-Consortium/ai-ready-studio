@@ -6,11 +6,11 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { AI_FILTERS, getFilterColor, getFilterById } from "@/lib/filters";
+import { SocialShare } from "@/components/SocialShare";
 import {
   ArrowLeft,
   Heart,
   Eye,
-  Share2,
   Play,
   TrendingUp,
   Clock,
@@ -305,10 +305,11 @@ const Gallery = () => {
                         />
                         <span>{video.votes.length}</span>
                       </button>
-                      <Button variant="ghost" size="sm" className="gap-2">
-                        <Share2 className="h-4 w-4" />
-                        Share
-                      </Button>
+                      <SocialShare
+                        videoUrl={video.video_url}
+                        videoTitle={video.title}
+                        filterName={filter?.name}
+                      />
                     </div>
                   </div>
                 </motion.div>
