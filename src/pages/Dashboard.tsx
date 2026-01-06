@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
+import QRCodeGenerator from "@/components/QRCodeGenerator";
 import { 
   Video, 
   Trophy, 
@@ -15,7 +16,8 @@ import {
   Heart,
   Eye,
   Settings,
-  Home
+  Home,
+  Shield
 } from "lucide-react";
 
 interface UserProfile {
@@ -39,6 +41,7 @@ const Dashboard = () => {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [videos, setVideos] = useState<UserVideo[]>([]);
   const [stats, setStats] = useState({ totalVotes: 0, totalViews: 0, totalVideos: 0 });
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -50,8 +53,20 @@ const Dashboard = () => {
     if (user) {
       fetchProfile();
       fetchVideos();
+      checkAdminRole();
     }
   }, [user]);
+
+  const checkAdminRole = async () => {
+    if (!user) return;
+    const { data } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", user.id)
+      .eq("role", "admin")
+      .maybeSingle();
+    setIsAdmin(!!data);
+  };
 
   const fetchProfile = async () => {
     if (!user) return;
@@ -115,14 +130,19 @@ const Dashboard = () => {
           </Link>
 
           <div className="flex items-center gap-3">
+            <QRCodeGenerator url={window.location.origin} title="Share App" />
             <Button variant="ghost" size="icon" asChild>
               <Link to="/">
                 <Home className="h-5 w-5" />
               </Link>
             </Button>
-            <Button variant="ghost" size="icon">
-              <Settings className="h-5 w-5" />
-            </Button>
+            {isAdmin && (
+              <Button variant="ghost" size="icon" asChild>
+                <Link to="/admin">
+                  <Shield className="h-5 w-5" />
+                </Link>
+              </Button>
+            )}
             <Button variant="ghost" size="icon" onClick={handleSignOut}>
               <LogOut className="h-5 w-5" />
             </Button>
