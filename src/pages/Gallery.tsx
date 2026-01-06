@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { AI_FILTERS, getFilterColor, getFilterById } from "@/lib/filters";
 import { SocialShare } from "@/components/SocialShare";
+import QRCodeGenerator from "@/components/QRCodeGenerator";
 import {
   ArrowLeft,
   Heart,
@@ -305,11 +306,18 @@ const Gallery = () => {
                         />
                         <span>{video.votes.length}</span>
                       </button>
-                      <SocialShare
-                        videoUrl={video.video_url}
-                        videoTitle={video.title}
-                        filterName={filter?.name}
-                      />
+                      <div className="flex items-center gap-2">
+                        <QRCodeGenerator
+                          url={`${window.location.origin}/gallery?video=${video.id}`}
+                          title={video.title}
+                          size={180}
+                        />
+                        <SocialShare
+                          videoUrl={video.video_url}
+                          videoTitle={video.title}
+                          filterName={filter?.name}
+                        />
+                      </div>
                     </div>
                   </div>
                 </motion.div>

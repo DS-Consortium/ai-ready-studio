@@ -12,6 +12,7 @@ import Record from "./pages/Record";
 import Gallery from "./pages/Gallery";
 import Events from "./pages/Events";
 import Rewards from "./pages/Rewards";
+import Admin from "./pages/Admin";
 
 const queryClient = new QueryClient();
 
@@ -30,6 +31,7 @@ const App = () => (
             <Route path="/gallery" element={<Gallery />} />
             <Route path="/events" element={<Events />} />
             <Route path="/rewards" element={<Rewards />} />
+            <Route path="/admin" element={<Admin />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
