@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { AI_FILTERS, getFilterColor, type AIFilter } from "@/lib/filters";
+import { SocialShare } from "@/components/SocialShare";
 import {
   ArrowLeft,
   Video,
@@ -18,7 +19,6 @@ import {
   RotateCcw,
   Upload,
   Check,
-  Share2,
   Sparkles,
 } from "lucide-react";
 
@@ -32,6 +32,7 @@ const Record = () => {
   const [selectedFilter, setSelectedFilter] = useState<AIFilter | null>(null);
   const [recordingState, setRecordingState] = useState<RecordingState>("idle");
   const [recordedBlob, setRecordedBlob] = useState<Blob | null>(null);
+  const [uploadedVideoUrl, setUploadedVideoUrl] = useState<string>("");
   const [videoTitle, setVideoTitle] = useState("");
   const [videoDescription, setVideoDescription] = useState("");
   const [isPlaying, setIsPlaying] = useState(false);
@@ -198,6 +199,7 @@ const Record = () => {
 
       if (dbError) throw dbError;
 
+      setUploadedVideoUrl(urlData.publicUrl);
       setRecordingState("done");
       toast({
         title: "Video submitted!",
@@ -516,10 +518,12 @@ const Record = () => {
                     My Videos
                   </Link>
                 </Button>
-                <Button>
-                  <Share2 className="h-4 w-4 mr-2" />
-                  Share
-                </Button>
+                <SocialShare
+                  videoUrl={uploadedVideoUrl}
+                  videoTitle={videoTitle || `My ${selectedFilter?.shortName} Declaration`}
+                  filterName={selectedFilter?.name}
+                  variant="default"
+                />
               </div>
             </motion.div>
           )}
