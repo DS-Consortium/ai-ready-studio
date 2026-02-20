@@ -9,6 +9,8 @@ import {
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { Share2, Copy, Check, MessageCircle, Linkedin, Instagram, Send } from "lucide-react";
+import { Share } from '@capacitor/share';
+import { Capacitor } from '@capacitor/core';
 
 interface SocialShareProps {
   videoUrl: string;
@@ -55,7 +57,6 @@ export const SocialShare = ({
       name: "Instagram",
       icon: Instagram,
       color: "bg-gradient-to-br from-purple-500 via-pink-500 to-orange-500 hover:from-purple-600 hover:via-pink-600 hover:to-orange-600",
-      // Instagram doesn't have direct share URL - we'll copy to clipboard
       action: "copy",
     },
     {
@@ -92,9 +93,26 @@ export const SocialShare = ({
     }
   };
 
-  // Native share API for mobile
+  // Native share API for mobile using Capacitor
   const handleNativeShare = async () => {
-    if (navigator.share) {
+    const isNative = Capacitor.isNativePlatform();
+    
+    if (isNative) {
+      try {
+        await Share.share({
+          title: videoTitle,
+          text: shareText,
+          url: videoUrl,
+          dialogTitle: 'Share your AI Readiness declaration',
+        });
+        toast({
+          title: "Success",
+          description: "Sharing sheet opened.",
+        });
+      } catch (error) {
+        console.error("Native share error:", error);
+      }
+    } else if (navigator.share) {
       try {
         await navigator.share({
           title: videoTitle,
@@ -107,8 +125,8 @@ export const SocialShare = ({
         });
         setOpen(false);
       } catch (error) {
-        // User cancelled or error
-        console.log("Share cancelled");
+        console.log("Web share cancelled");
+        setOpen(true); // Fallback to dialog
       }
     } else {
       setOpen(true);

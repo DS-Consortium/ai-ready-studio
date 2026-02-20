@@ -12,10 +12,14 @@ export interface AIFilter {
   captionPrompt: string;
 }
 
+/**
+ * DSC Filters (formerly AI Filters)
+ * These filters are used to categorize the AI Readiness declarations.
+ */
 export const AI_FILTERS: AIFilter[] = [
   {
     id: "ready",
-    name: "I AM AI Ready",
+    name: "I AM AI Ready (DSC Filter)",
     shortName: "AI Ready",
     description: "The foundational declaration of AI maturity",
     detailedDescription: "I understand AI's potential and take responsibility for how it shapes our future.",
@@ -26,7 +30,7 @@ export const AI_FILTERS: AIFilter[] = [
   },
   {
     id: "savvy",
-    name: "I AM AI Savvy",
+    name: "I AM AI Savvy (DSC Filter)",
     shortName: "AI Savvy",
     description: "Understanding how AI actually works — beyond buzzwords",
     detailedDescription: "I grasp the technical foundations, capabilities, and limitations of AI systems.",
@@ -37,7 +41,7 @@ export const AI_FILTERS: AIFilter[] = [
   },
   {
     id: "accountable",
-    name: "I AM AI Accountable",
+    name: "I AM AI Accountable (DSC Filter)",
     shortName: "AI Accountable",
     description: "AI without accountability destroys trust",
     detailedDescription: "I champion ethical AI governance, transparency, and responsible deployment.",
@@ -48,7 +52,7 @@ export const AI_FILTERS: AIFilter[] = [
   },
   {
     id: "driven",
-    name: "I AM AI Driven",
+    name: "I AM AI Driven (DSC Filter)",
     shortName: "AI Driven",
     description: "AI decisions must drive real outcomes",
     detailedDescription: "I leverage AI strategically to transform operations and achieve measurable impact.",
@@ -59,7 +63,7 @@ export const AI_FILTERS: AIFilter[] = [
   },
   {
     id: "enabler",
-    name: "I AM an AI Enabler",
+    name: "I AM an AI Enabler (DSC Filter)",
     shortName: "AI Enabler",
     description: "Infrastructure, security, and governance make AI possible",
     detailedDescription: "I build the secure foundations that allow AI to scale safely across organizations.",
@@ -70,7 +74,7 @@ export const AI_FILTERS: AIFilter[] = [
   },
   {
     id: "building",
-    name: "I AM Building AI-Ready Institutions",
+    name: "I AM Building AI-Ready Institutions (DSC Filter)",
     shortName: "Building Institutions",
     description: "AI readiness is institutional, not individual",
     detailedDescription: "I transform organizational structures, cultures, and processes to embrace AI.",
@@ -81,7 +85,7 @@ export const AI_FILTERS: AIFilter[] = [
   },
   {
     id: "leading",
-    name: "I AM Leading Responsible AI",
+    name: "I AM Leading Responsible AI (DSC Filter)",
     shortName: "Leading Responsibly",
     description: "People, trust, and leadership determine AI success",
     detailedDescription: "I guide teams through AI transformation with empathy, vision, and ethical clarity.",
@@ -92,7 +96,7 @@ export const AI_FILTERS: AIFilter[] = [
   },
   {
     id: "shaping",
-    name: "I AM Shaping AI Ecosystems",
+    name: "I AM Shaping AI Ecosystems (DSC Filter)",
     shortName: "Shaping Ecosystems",
     description: "AI scales through collaboration, not isolation",
     detailedDescription: "I forge partnerships and cross-sector alliances to advance AI for collective benefit.",

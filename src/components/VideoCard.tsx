@@ -1,7 +1,10 @@
+import { useState } from "react";
 import { motion } from "framer-motion";
-import { Heart, Play, Eye, Share2 } from "lucide-react";
+import { Heart, Play, Eye } from "lucide-react";
 import { getFilterById, getFilterColor } from "@/lib/filters";
 import { Button } from "@/components/ui/button";
+import { SocialShare } from "./SocialShare";
+import { cn } from "@/lib/utils";
 
 interface VideoEntry {
   id: string;
@@ -12,6 +15,7 @@ interface VideoEntry {
   votes: number;
   views: number;
   thumbnail: string;
+  videoUrl?: string;
 }
 
 interface VideoCardProps {
@@ -21,8 +25,22 @@ interface VideoCardProps {
 }
 
 export const VideoCard = ({ video, index, onVote }: VideoCardProps) => {
+  const [hasVoted, setHasVoted] = useState(false);
+  const [voteCount, setVoteCount] = useState(video.votes);
   const filter = getFilterById(video.filterId);
   const filterColor = getFilterColor(video.filterId);
+
+  const handleVoteClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!hasVoted) {
+      setHasVoted(true);
+      setVoteCount(prev => prev + 1);
+      onVote?.(video.id);
+    }
+  };
+
+  const videoUrl = video.videoUrl || `https://legroupeds.com/video/${video.id}`;
 
   return (
     <motion.div
@@ -81,16 +99,22 @@ export const VideoCard = ({ video, index, onVote }: VideoCardProps) => {
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => onVote?.(video.id)}
-            className="gap-2 text-muted-foreground hover:text-destructive"
+            onClick={handleVoteClick}
+            className={cn(
+              "gap-2 transition-colors",
+              hasVoted ? "text-destructive" : "text-muted-foreground hover:text-destructive"
+            )}
           >
-            <Heart className="h-4 w-4" />
-            <span className="font-semibold">{video.votes.toLocaleString()}</span>
+            <Heart className={cn("h-4 w-4", hasVoted && "fill-current")} />
+            <span className="font-semibold">{voteCount.toLocaleString()}</span>
           </Button>
 
-          <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground">
-            <Share2 className="h-4 w-4" />
-          </Button>
+          <SocialShare 
+            videoUrl={videoUrl}
+            videoTitle={video.title}
+            filterName={filter?.name}
+            size="icon"
+          />
         </div>
       </div>
     </motion.div>

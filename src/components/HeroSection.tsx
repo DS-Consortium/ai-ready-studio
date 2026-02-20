@@ -1,6 +1,7 @@
 import { motion } from "framer-motion";
 import { ArrowRight, Play, Users, Video, Award } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { VideoTutorial } from "./VideoTutorial";
 
 const stats = [
   { icon: Users, value: "2,500+", label: "Participants" },
@@ -123,14 +124,7 @@ export const HeroSection = () => {
             Create Your Video
             <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
           </Button>
-          <Button
-            variant="outline"
-            size="lg"
-            className="min-w-[200px] rounded-xl border-white/30 bg-white/5 text-base text-white hover:bg-white/10 hover:text-white"
-          >
-            <Play className="h-4 w-4" />
-            Watch Examples
-          </Button>
+          <VideoTutorial />
         </motion.div>
 
         {/* Stats */}

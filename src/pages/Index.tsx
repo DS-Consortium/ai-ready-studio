@@ -6,6 +6,7 @@ import { GallerySection } from "@/components/GallerySection";
 import { EventsSection } from "@/components/EventsSection";
 import { CTASection } from "@/components/CTASection";
 import { Footer } from "@/components/Footer";
+import { EliChatbot } from "@/components/EliChatbot";
 
 const Index = () => {
   return (
@@ -20,6 +21,7 @@ const Index = () => {
         <CTASection />
       </main>
       <Footer />
+      <EliChatbot />
     </div>
   );
 };
