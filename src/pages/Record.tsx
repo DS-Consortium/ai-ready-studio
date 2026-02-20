@@ -1,4 +1,7 @@
 import { useState, useRef, useEffect } from "react";
+import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
+import { VideoRecorder, VideoRecorderOptions } from '@capacitor-community/video-recorder';
+import { Share } from '@capacitor/share';
 import { useNavigate, Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/contexts/AuthContext";
@@ -8,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { AI_FILTERS, getFilterColor, type AIFilter } from "@/lib/filters";
-import { SocialShare } from "@/components/SocialShare";
+
 import {
   ArrowLeft,
   Video,
@@ -39,12 +42,10 @@ const Record = () => {
   const [countdown, setCountdown] = useState<number | null>(null);
   const [recordingTime, setRecordingTime] = useState(0);
 
-  const videoRef = useRef<HTMLVideoElement>(null);
+    const videoRef = useRef<HTMLVideoElement>(null);
   const previewRef = useRef<HTMLVideoElement>(null);
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const streamRef = useRef<MediaStream | null>(null);
-  const chunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const videoFileRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -55,11 +56,11 @@ const Record = () => {
   useEffect(() => {
     return () => {
       // Cleanup on unmount
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach((track) => track.stop());
-      }
       if (timerRef.current) {
         clearInterval(timerRef.current);
+      }
+      if (videoRef.current && videoRef.current.srcObject) {
+        (videoRef.current.srcObject as MediaStream).getTracks().forEach(track => track.stop());
       }
     };
   }, []);
@@ -70,7 +71,6 @@ const Record = () => {
         video: { facingMode: "user", width: 1280, height: 720 },
         audio: true,
       });
-      streamRef.current = stream;
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
       }
@@ -84,10 +84,6 @@ const Record = () => {
   };
 
   const startRecording = async () => {
-    if (!streamRef.current) {
-      await startCamera();
-    }
-
     // Countdown
     for (let i = 3; i > 0; i--) {
       setCountdown(i);
@@ -95,50 +91,54 @@ const Record = () => {
     }
     setCountdown(null);
 
-    // Start recording
-    chunksRef.current = [];
-    const mediaRecorder = new MediaRecorder(streamRef.current!, {
-      mimeType: "video/webm;codecs=vp9",
-    });
+    try {
+      const options: VideoRecorderOptions = {
+        quality: 'HIGH',
+        duration: 60,
+        width: 1280,
+        height: 720,
+        camera: 'FRONT',
+      };
+      const { videoFilePath } = await VideoRecorder.startRecording(options);
+      videoFileRef.current = videoFilePath;
+      setRecordingState("recording");
+      setRecordingTime(0);
 
-    mediaRecorder.ondataavailable = (e) => {
-      if (e.data.size > 0) {
-        chunksRef.current.push(e.data);
-      }
-    };
-
-    mediaRecorder.onstop = () => {
-      const blob = new Blob(chunksRef.current, { type: "video/webm" });
-      setRecordedBlob(blob);
-      setRecordingState("preview");
-
-      // Stop camera
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach((track) => track.stop());
-        streamRef.current = null;
-      }
-    };
-
-    mediaRecorderRef.current = mediaRecorder;
-    mediaRecorder.start();
-    setRecordingState("recording");
-    setRecordingTime(0);
-
-    // Timer
-    timerRef.current = setInterval(() => {
-      setRecordingTime((t) => {
-        if (t >= 60) {
-          stopRecording();
-          return t;
-        }
-        return t + 1;
+      timerRef.current = setInterval(() => {
+        setRecordingTime((t) => {
+          if (t >= 60) {
+            stopRecording();
+            return t;
+          }
+          return t + 1;
+        });
+      }, 1000);
+    } catch (error) {
+      toast({
+        title: "Recording failed",
+        description: "Could not start video recording.",
+        variant: "destructive",
       });
-    }, 1000);
+      setRecordingState("idle");
+    }
   };
 
-  const stopRecording = () => {
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
-      mediaRecorderRef.current.stop();
+  const stopRecording = async () => {
+    try {
+      const { videoFilePath } = await VideoRecorder.stopRecording();
+      if (videoFilePath) {
+        videoFileRef.current = videoFilePath;
+        const response = await fetch(videoFilePath);
+        const blob = await response.blob();
+        setRecordedBlob(blob);
+        setRecordingState("preview");
+      }
+    } catch (error) {
+      toast({
+        title: "Stop recording failed",
+        description: "Could not stop video recording.",
+        variant: "destructive",
+      });
     }
     if (timerRef.current) {
       clearInterval(timerRef.current);
@@ -150,6 +150,7 @@ const Record = () => {
     setRecordedBlob(null);
     setRecordingState("idle");
     setRecordingTime(0);
+    videoFileRef.current = null;
     startCamera();
   };
 
@@ -170,13 +171,13 @@ const Record = () => {
     setRecordingState("uploading");
 
     try {
-      const fileName = `${user.id}/${Date.now()}.webm`;
+      const fileName = `${user.id}/${Date.now()}.mp4`; // Assuming mp4 from native recorder
 
       // Upload video
       const { error: uploadError } = await supabase.storage
         .from("videos")
-        .upload(fileName, recordedBlob, {
-          contentType: "video/webm",
+        .upload(fileName, recordedBlob!, {
+          contentType: recordedBlob?.type || "video/mp4",
         });
 
       if (uploadError) throw uploadError;
@@ -518,12 +519,21 @@ const Record = () => {
                     My Videos
                   </Link>
                 </Button>
-                <SocialShare
-                  videoUrl={uploadedVideoUrl}
-                  videoTitle={videoTitle || `My ${selectedFilter?.shortName} Declaration`}
-                  filterName={selectedFilter?.name}
+                <Button
                   variant="default"
-                />
+                  onClick={async () => {
+                    if (uploadedVideoUrl && selectedFilter) {
+                      await Share.share({
+                        title: videoTitle || `My ${selectedFilter.shortName} Declaration`,
+                        text: `Check out my AI Ready Declaration: ${videoTitle || `My ${selectedFilter.shortName} Declaration`}! #AIReady #DSConsortium`,
+                        url: uploadedVideoUrl,
+                        dialogTitle: 'Share your AI Ready Declaration',
+                      });
+                    }
+                  }}
+                >
+                  Share
+                </Button>
               </div>
             </motion.div>
           )}
