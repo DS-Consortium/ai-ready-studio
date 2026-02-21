@@ -1,8 +1,8 @@
 import { Linkedin, Twitter, Instagram, Facebook, Mail, ExternalLink } from "lucide-react";
 
 const socialLinks = [
-  { icon: Linkedin, href: "#", label: "LinkedIn" },
-  { icon: Twitter, href: "#", label: "X (Twitter)" },
+  { icon: Linkedin, href: "https://www.linkedin.com/company/dsconsortium", label: "LinkedIn" },
+  { icon: Twitter, href: "https://x.com/ds_compylr", label: "X (Twitter)" },
   { icon: Instagram, href: "#", label: "Instagram" },
   { icon: Facebook, href: "#", label: "Facebook" },
 ];
