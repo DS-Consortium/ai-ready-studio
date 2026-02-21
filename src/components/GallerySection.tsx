@@ -87,50 +87,7 @@ export const GallerySection = () => {
             Load More Videos
           </Button>
         </motion.div>
-
-        {/* Journey Section - Synced with LeGroupeDS Events */}
-        <div className="mt-32 bg-primary/5 rounded-[3rem] p-8 md:p-16 border border-primary/10">
-          <div className="grid md:grid-cols-2 gap-12 items-center">
-            <div>
-              <span className="text-primary font-semibold tracking-wider uppercase text-sm">Next Steps</span>
-              <h2 className="font-display text-3xl md:text-4xl font-bold mt-4 mb-6">
-                Your AI Readiness Journey Doesn't End Here
-              </h2>
-              <p className="text-muted-foreground text-lg mb-8">
-                Connect with our curated seminars and explore the Knowledge Lab archive on our main platform.
-              </p>
-              <div className="space-y-4">
-                <Button size="lg" className="w-full sm:w-auto rounded-2xl gap-3" asChild>
-                  <a href="https://legroupeds.com/events" target="_blank" rel="noopener noreferrer">
-                    Explore Curated Seminars
-                    <Calendar className="h-5 w-5" />
-                  </a>
-                </Button>
-                <p className="text-sm text-muted-foreground flex items-center gap-2">
-                  <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-                  New seminars added weekly to the Knowledge Lab
-                </p>
-              </div>
-            </div>
-            <div className="relative">
-              <div className="aspect-video bg-white rounded-3xl shadow-2xl overflow-hidden border border-border group">
-                <img 
-                  src="https://images.unsplash.com/photo-1591115765373-520b7a217294?w=800&q=80" 
-                  alt="Knowledge Lab Seminar" 
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
-                />
-                <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
-                  <div className="w-16 h-16 bg-white/90 backdrop-blur rounded-full flex items-center justify-center shadow-xl">
-                    <a href="https://legroupeds.com/knowledge-lab" target="_blank" rel="noopener noreferrer">
-                      <ExternalLink className="h-8 w-8 text-primary" />
-                    </a>
-                  </div>
-                </div>
-              </div>
-            </div>
           </div>
-        </div>
-      </div>
     </section>
   );
 };
