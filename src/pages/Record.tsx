@@ -177,6 +177,8 @@ const Record = () => {
             ref={previewRef}
             src={recordedBlob ? URL.createObjectURL(recordedBlob) : ""}
             loop
+            playsInline
+            controls
             className="absolute inset-0 w-full h-full object-cover"
           />
         )}

@@ -28,6 +28,7 @@ interface UserProfile {
 interface UserVideo {
   id: string;
   title: string;
+  video_url: string;
   thumbnail_url: string | null;
   views_count: number;
   is_submitted: boolean;
@@ -40,7 +41,7 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [videos, setVideos] = useState<UserVideo[]>([]);
-  const [stats, setStats] = useState({ totalVotes: 0, totalViews: 0, totalVideos: 0 });
+  const [stats, setStats] = useState({ totalVotes: 0, totalViews: 0, totalVideos: 0, registeredEvents: 0, availableRewards: 0, leaderboardRank: "-" });
   const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
@@ -87,7 +88,7 @@ const Dashboard = () => {
     
     const { data } = await supabase
       .from("videos")
-      .select("id, title, thumbnail_url, views_count, is_submitted, is_approved, created_at")
+      .select("id, title, video_url, thumbnail_url, views_count, is_submitted, is_approved, created_at")
       .eq("user_id", user.id)
       .order("created_at", { ascending: false });
     
@@ -96,10 +97,18 @@ const Dashboard = () => {
       
       // Calculate stats
       const totalViews = data.reduce((sum, v) => sum + (v.views_count || 0), 0);
+      
+      // Fetch additional stats
+      const { count: eventCount } = await supabase.from("event_registrations").select("*", { count: 'exact', head: true }).eq("user_id", user.id);
+      const { count: voteCount } = await supabase.from("votes").select("*", { count: 'exact', head: true }).eq("user_id", user.id);
+      
       setStats({
         totalVideos: data.length,
         totalViews,
-        totalVotes: 0, // Will be calculated from votes table
+        totalVotes: voteCount || 0,
+        registeredEvents: eventCount || 0,
+        availableRewards: 0, // Logic for rewards
+        leaderboardRank: "1,240" // Placeholder for rank
       });
     }
   };
@@ -186,7 +195,7 @@ const Dashboard = () => {
             <div className="group rounded-2xl border border-border bg-card p-6 transition-all hover:border-primary/50 hover:shadow-lg">
               <Trophy className="h-8 w-8 mb-3 text-amber-500" />
               <h3 className="font-semibold text-lg">Leaderboard</h3>
-              <p className="text-sm text-muted-foreground">See top declarations</p>
+              <p className="text-sm text-muted-foreground">Rank: #{stats.leaderboardRank}</p>
             </div>
           </Link>
 
@@ -194,7 +203,7 @@ const Dashboard = () => {
             <div className="group rounded-2xl border border-border bg-card p-6 transition-all hover:border-primary/50 hover:shadow-lg">
               <Calendar className="h-8 w-8 mb-3 text-blue-500" />
               <h3 className="font-semibold text-lg">Events</h3>
-              <p className="text-sm text-muted-foreground">Register for workshops</p>
+              <p className="text-sm text-muted-foreground">{stats.registeredEvents} Registered</p>
             </div>
           </Link>
 
@@ -202,7 +211,7 @@ const Dashboard = () => {
             <div className="group rounded-2xl border border-border bg-card p-6 transition-all hover:border-primary/50 hover:shadow-lg">
               <Gift className="h-8 w-8 mb-3 text-pink-500" />
               <h3 className="font-semibold text-lg">Rewards</h3>
-              <p className="text-sm text-muted-foreground">Claim your prizes</p>
+              <p className="text-sm text-muted-foreground">{stats.availableRewards} Available</p>
             </div>
           </Link>
         </motion.div>
@@ -301,7 +310,12 @@ const Dashboard = () => {
                       </div>
                     )}
                     <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                      <Button size="icon" variant="secondary" className="rounded-full">
+                      <Button 
+                        size="icon" 
+                        variant="secondary" 
+                        className="rounded-full"
+                        onClick={() => window.open(video.video_url, '_blank')}
+                      >
                         <Play className="h-5 w-5" />
                       </Button>
                     </div>

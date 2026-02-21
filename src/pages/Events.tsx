@@ -80,55 +80,21 @@ const Events = () => {
   };
 
   const handleRegister = async (eventId: string) => {
-    if (!user) {
-      toast({
-        title: "Sign in required",
-        description: "Please sign in to register for events.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setRegistering(eventId);
-
-    try {
-      if (isRegistered(eventId)) {
-        // Unregister
-        await supabase
-          .from("event_registrations")
-          .delete()
-          .eq("event_id", eventId)
-          .eq("user_id", user.id);
-
-        toast({
-          title: "Registration cancelled",
-          description: "You've been unregistered from this event.",
-        });
-      } else {
-        // Register
-        const { error } = await supabase.from("event_registrations").insert({
+    // Lead to main website for paid registrations
+    window.open("https://legroupeds.com/events", "_blank");
+    
+    // Optionally still record the intent in Supabase
+    if (user) {
+      try {
+        await supabase.from("event_registrations").upsert({
           event_id: eventId,
           user_id: user.id,
-          status: "registered",
+          status: "interested",
         });
-
-        if (error) throw error;
-
-        toast({
-          title: "Registered!",
-          description: "You're now registered for this event.",
-        });
+        fetchRegistrations();
+      } catch (e) {
+        console.error("Failed to record interest:", e);
       }
-
-      fetchRegistrations();
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
-    } finally {
-      setRegistering(null);
     }
   };
 

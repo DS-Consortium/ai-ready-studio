@@ -9,6 +9,8 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Download, QrCode, Share2 } from "lucide-react";
+import { Share } from '@capacitor/share';
+import { useToast } from "@/hooks/use-toast";
 
 interface QRCodeGeneratorProps {
   url: string;
@@ -19,6 +21,7 @@ interface QRCodeGeneratorProps {
 const QRCodeGenerator = ({ url, title = "Scan to view", size = 200 }: QRCodeGeneratorProps) => {
   const [open, setOpen] = useState(false);
   const qrRef = useRef<HTMLDivElement>(null);
+  const { toast } = useToast();
 
   const downloadQRCode = () => {
     if (!qrRef.current) return;
@@ -54,17 +57,20 @@ const QRCodeGenerator = ({ url, title = "Scan to view", size = 200 }: QRCodeGene
   };
 
   const shareQRCode = async () => {
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: title,
-          url: url,
-        });
-      } catch (error) {
-        console.log("Share cancelled");
-      }
-    } else {
+    try {
+      await Share.share({
+        title: title,
+        text: `Check out this link for ${title}:`,
+        url: url,
+        dialogTitle: 'Share Link',
+      });
+    } catch (error) {
+      // Fallback to clipboard if share fails or is cancelled
       navigator.clipboard.writeText(url);
+      toast({
+        title: "Link copied",
+        description: "The link has been copied to your clipboard.",
+      });
     }
   };
 
