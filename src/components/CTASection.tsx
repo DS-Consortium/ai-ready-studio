@@ -1,8 +1,14 @@
 import { motion } from "framer-motion";
 import { ArrowRight, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useNavigate } from "react-router-dom";
+import { useState } from "react";
+import { ContestRules } from "./ContestRules";
 
 export const CTASection = () => {
+  const navigate = useNavigate();
+  const [showRules, setShowRules] = useState(false);
+
   return (
     <section className="relative overflow-hidden py-20 md:py-32">
       {/* Background gradient */}
@@ -64,6 +70,7 @@ export const CTASection = () => {
             <Button
               variant="hero"
               size="lg"
+              onClick={() => navigate("/record")}
               className="group min-w-[220px] rounded-xl bg-white text-primary hover:bg-white/90"
             >
               Start Creating Now
@@ -72,10 +79,12 @@ export const CTASection = () => {
             <Button
               variant="outline"
               size="lg"
+              onClick={() => setShowRules(true)}
               className="min-w-[220px] rounded-xl border-white/30 bg-transparent text-white hover:bg-white/10 hover:text-white"
             >
               View Contest Rules
             </Button>
+            <ContestRules open={showRules} onOpenChange={setShowRules} />
           </div>
 
           <p className="mt-8 text-sm text-white/50">

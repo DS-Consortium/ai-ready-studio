@@ -1,8 +1,10 @@
 import { motion } from "framer-motion";
+import { useNavigate } from "react-router-dom";
 import { AI_FILTERS } from "@/lib/filters";
 import { FilterCard } from "@/components/FilterCard";
 
 export const FilterSection = () => {
+  const navigate = useNavigate();
   return (
     <section id="create" className="bg-pattern py-20 md:py-32">
       <div className="container">
@@ -32,7 +34,7 @@ export const FilterSection = () => {
               key={filter.id}
               filter={filter}
               index={index}
-              onSelect={(f) => console.log("Selected:", f.name)}
+              onSelect={(f) => navigate(`/record?filter=${f.id}`)}
             />
           ))}
         </div>
@@ -46,7 +48,10 @@ export const FilterSection = () => {
         >
           <p className="text-muted-foreground">
             Can't decide?{" "}
-            <button className="font-medium text-filter-savvy hover:underline">
+            <button 
+              onClick={() => navigate("/record?filter=ready")}
+              className="font-medium text-filter-savvy hover:underline"
+            >
               Start with "I AM AI Ready"
             </button>{" "}
             — the universal declaration.

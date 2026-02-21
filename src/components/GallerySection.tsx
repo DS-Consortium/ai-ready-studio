@@ -1,85 +1,17 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Filter, TrendingUp, Clock, Sparkles } from "lucide-react";
-import { VideoCard, type VideoEntry } from "@/components/VideoCard";
+import { TrendingUp, Clock, Sparkles, ExternalLink, Calendar } from "lucide-react";
+import { VideoCard } from "@/components/VideoCard";
 import { Button } from "@/components/ui/button";
-
-// Sample video data
-const sampleVideos: VideoEntry[] = [
-  {
-    id: "1",
-    title: "Why AI Accountability Matters in Public Institutions",
-    author: "Dr. Sarah Chen",
-    organization: "Ministry of Digital Affairs",
-    filterId: "accountable",
-    votes: 847,
-    views: 3420,
-    thumbnail: "",
-  },
-  {
-    id: "2",
-    title: "Building AI-Ready Teams: My Journey",
-    author: "Marcus Williams",
-    organization: "Global Bank Corp",
-    filterId: "building",
-    votes: 623,
-    views: 2891,
-    thumbnail: "",
-  },
-  {
-    id: "3",
-    title: "From Data Analyst to AI Enabler",
-    author: "Priya Sharma",
-    organization: "HealthTech Foundation",
-    filterId: "enabler",
-    votes: 512,
-    views: 2156,
-    thumbnail: "",
-  },
-  {
-    id: "4",
-    title: "Leading Responsible AI in Education",
-    author: "Prof. James Okonkwo",
-    organization: "African Union Institute",
-    filterId: "leading",
-    votes: 489,
-    views: 1987,
-    thumbnail: "",
-  },
-  {
-    id: "5",
-    title: "My AI Savvy Transformation Story",
-    author: "Elena Rodriguez",
-    organization: "Tech Innovation Lab",
-    filterId: "savvy",
-    votes: 456,
-    views: 1823,
-    thumbnail: "",
-  },
-  {
-    id: "6",
-    title: "Driving AI Strategy in Government",
-    author: "Robert Kim",
-    organization: "Smart City Initiative",
-    filterId: "driven",
-    votes: 398,
-    views: 1654,
-    thumbnail: "",
-  },
-];
+import { SEED_VIDEOS } from "@/lib/seedData";
 
 const sortOptions = [
   { id: "popular", label: "Most Popular", icon: TrendingUp },
   { id: "recent", label: "Most Recent", icon: Clock },
-  { id: "all", label: "All Filters", icon: Filter },
 ];
 
 export const GallerySection = () => {
   const [activeSort, setActiveSort] = useState("popular");
-
-  const handleVote = (videoId: string) => {
-    console.log("Voted for:", videoId);
-  };
 
   return (
     <section id="gallery" className="bg-secondary/30 py-20 md:py-32">
@@ -122,14 +54,23 @@ export const GallerySection = () => {
           </div>
         </motion.div>
 
-        {/* Video grid */}
+        {/* Video grid using SEED_VIDEOS */}
         <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {sampleVideos.map((video, index) => (
+          {SEED_VIDEOS.map((video, index) => (
             <VideoCard
               key={video.id}
-              video={video}
+              video={{
+                id: video.id,
+                title: video.title,
+                author: video.user_name,
+                organization: video.identity,
+                filterId: video.filter_id,
+                votes: video.votes,
+                views: Math.floor(video.votes * 4.5),
+                thumbnail: video.thumbnail_url,
+              }}
               index={index}
-              onVote={handleVote}
+              onVote={() => console.log("Voted:", video.id)}
             />
           ))}
         </div>
@@ -146,6 +87,49 @@ export const GallerySection = () => {
             Load More Videos
           </Button>
         </motion.div>
+
+        {/* Journey Section - Synced with LeGroupeDS Events */}
+        <div className="mt-32 bg-primary/5 rounded-[3rem] p-8 md:p-16 border border-primary/10">
+          <div className="grid md:grid-cols-2 gap-12 items-center">
+            <div>
+              <span className="text-primary font-semibold tracking-wider uppercase text-sm">Next Steps</span>
+              <h2 className="font-display text-3xl md:text-4xl font-bold mt-4 mb-6">
+                Your AI Readiness Journey Doesn't End Here
+              </h2>
+              <p className="text-muted-foreground text-lg mb-8">
+                Connect with our curated seminars and explore the Knowledge Lab archive on our main platform.
+              </p>
+              <div className="space-y-4">
+                <Button size="lg" className="w-full sm:w-auto rounded-2xl gap-3" asChild>
+                  <a href="https://legroupeds.com/events" target="_blank" rel="noopener noreferrer">
+                    Explore Curated Seminars
+                    <Calendar className="h-5 w-5" />
+                  </a>
+                </Button>
+                <p className="text-sm text-muted-foreground flex items-center gap-2">
+                  <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                  New seminars added weekly to the Knowledge Lab
+                </p>
+              </div>
+            </div>
+            <div className="relative">
+              <div className="aspect-video bg-white rounded-3xl shadow-2xl overflow-hidden border border-border group">
+                <img 
+                  src="https://images.unsplash.com/photo-1591115765373-520b7a217294?w=800&q=80" 
+                  alt="Knowledge Lab Seminar" 
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+                />
+                <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
+                  <div className="w-16 h-16 bg-white/90 backdrop-blur rounded-full flex items-center justify-center shadow-xl">
+                    <a href="https://legroupeds.com/knowledge-lab" target="_blank" rel="noopener noreferrer">
+                      <ExternalLink className="h-8 w-8 text-primary" />
+                    </a>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </section>
   );

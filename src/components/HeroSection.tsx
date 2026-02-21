@@ -119,6 +119,7 @@ export const HeroSection = () => {
           <Button
             variant="hero"
             size="lg"
+            onClick={() => navigate("/record")}
             className="group min-w-[200px] rounded-xl text-base"
           >
             Create Your Video
