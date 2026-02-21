@@ -37,7 +37,7 @@ export const ContestRules = ({ open, onOpenChange }: ContestRulesProps) => {
               </h3>
               <p className="text-muted-foreground leading-relaxed">
                 The "Are You AI Ready?" contest is open to professionals, leaders, and institutions worldwide. 
-                Participants must be at least 18 years of age. Employees of LeGroupeDS and its affiliates are 
+                Participants must be at least 18 years of age. Employees of DS Consortium and its affiliates are 
                 eligible to participate but may be excluded from certain prize categories.
               </p>
             </section>
@@ -71,7 +71,7 @@ export const ContestRules = ({ open, onOpenChange }: ContestRulesProps) => {
               <h3 className="font-bold text-lg mb-3">4. Content Guidelines</h3>
               <p className="text-muted-foreground leading-relaxed">
                 Videos must be original and should not contain any copyrighted material, offensive language, 
-                or confidential institutional data. LeGroupeDS reserves the right to remove any content that 
+                or confidential institutional data. DS Consortium reserves the right to remove any content that 
                 violates these standards.
               </p>
             </section>
@@ -87,7 +87,7 @@ export const ContestRules = ({ open, onOpenChange }: ContestRulesProps) => {
 
             <div className="bg-primary/5 p-4 rounded-2xl border border-primary/10">
               <p className="text-sm text-primary font-medium">
-                By submitting a video, you grant LeGroupeDS a non-exclusive license to use the content 
+                By submitting a video, you grant DS Consortium a non-exclusive license to use the content 
                 for promotional purposes within the Knowledge Lab and across social media platforms.
               </p>
             </div>

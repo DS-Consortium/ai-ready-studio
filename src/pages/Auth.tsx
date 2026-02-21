@@ -94,7 +94,7 @@ const Auth = () => {
                   We recommend signing in through our main platform to sync your professional profile.
                 </p>
                 <Button size="lg" className="w-full h-14 text-lg gap-3 rounded-2xl mb-4" onClick={() => window.location.href = MAIN_WEBSITE_URL}>
-                  Sign In on LeGroupeDS <ExternalLink className="h-5 w-5" />
+                  Sign In on DS Consortium <ExternalLink className="h-5 w-5" />
                 </Button>
                 <button onClick={() => setShowInAppAuth(true)} className="text-sm text-primary font-medium hover:underline">
                   Or continue within the app
