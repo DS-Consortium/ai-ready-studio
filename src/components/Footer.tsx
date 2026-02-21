@@ -11,10 +11,10 @@ const footerLinks = [
   {
     title: "Contest",
     links: [
-      { label: "Rules & Guidelines", href: "#" },
+      { label: "Rules & Guidelines", href: "/components/ContestRules.tsx" },
       { label: "Prizes", href: "#" },
-      { label: "FAQ", href: "#" },
-      { label: "Terms & Conditions", href: "#" },
+      { label: "FAQ", href: "https://legroupeds.com/community" },
+      { label: "Terms & Conditions", href: "https://legroupeds.com/terms-and-conditions" },
     ],
   },
   {
@@ -29,10 +29,10 @@ const footerLinks = [
   {
     title: "DS Consortium",
     links: [
-      { label: "About Us", href: "#" },
-      { label: "Our Mission", href: "#" },
-      { label: "Contact", href: "#" },
-      { label: "Privacy Policy", href: "#" },
+      { label: "About Us", href: "https://legroupeds.com/about" },
+      { label: "Our Mission", href: "https://legroupeds.com/services/knowledge-lab" },
+      { label: "Contact", href: "https://legroupeds.com/contact" },
+      { label: "Privacy Policy", href: "https://legroupeds.com/privacy" },
     ],
   },
 ];

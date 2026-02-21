@@ -88,7 +88,11 @@ export const Header = () => {
                   <User className="h-4 w-4" />
                   Sign In
                 </Button>
-                <Button variant="hero">Join Contest</Button>
+                <Button variant="hero"
+                onClick={() => navigate("/record")}
+                >
+                  Join Contest
+                </Button>
               </div>
             </nav>
           </motion.div>
