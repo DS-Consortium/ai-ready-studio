@@ -1,6 +1,8 @@
+import { useState } from "react";
 import { motion } from "framer-motion";
-import { Calendar, MapPin, ArrowRight, ExternalLink } from "lucide-react";
+import { Calendar, MapPin, ArrowRight, ExternalLink, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { DownloadCalendar } from "@/components/DownloadCalendar";
 
 const upcomingEvents = [
   {
@@ -10,6 +12,7 @@ const upcomingEvents = [
     location: "Virtual + Nairobi",
     filterTag: "AI Accountable",
     color: "hsl(175, 80%, 40%)",
+    eventUrl: "https://legroupeds.com/events",
   },
   {
     id: 2,
@@ -18,6 +21,7 @@ const upcomingEvents = [
     location: "Hybrid Program",
     filterTag: "AI Savvy",
     color: "hsl(210, 100%, 50%)",
+    eventUrl: "https://legroupeds.com/events",
   },
   {
     id: 3,
@@ -26,10 +30,13 @@ const upcomingEvents = [
     location: "Singapore",
     filterTag: "AI Driven",
     color: "hsl(40, 90%, 50%)",
+    eventUrl: "https://legroupeds.com/events",
   },
 ];
 
 export const EventsSection = () => {
+  const [calendarOpen, setCalendarOpen] = useState(false);
+
   return (
     <section className="py-20 md:py-32">
       <div className="container">
@@ -48,7 +55,7 @@ export const EventsSection = () => {
               Your AI Readiness Journey Doesn't End Here
             </h2>
             <p className="mt-4 text-lg text-muted-foreground">
-              Each filter connects you to curated events, masterclasses, and leadership 
+              Each filter connects you to curated events, masterclasses, and leadership
               programs. Transform your declaration into action.
             </p>
 
@@ -59,7 +66,8 @@ export const EventsSection = () => {
                   <ExternalLink className="h-4 w-4" />
                 </a>
               </Button>
-              <Button variant="outline" size="lg">
+              <Button variant="outline" size="lg" className="gap-2" onClick={() => setCalendarOpen(true)}>
+                <Download className="h-4 w-4" />
                 Download Calendar
               </Button>
             </div>
@@ -109,9 +117,16 @@ export const EventsSection = () => {
                     variant="ghost"
                     size="sm"
                     className="group/btn self-start sm:self-center"
+                    asChild
                   >
-                    Learn More
-                    <ArrowRight className="h-4 w-4 transition-transform group-hover/btn:translate-x-1" />
+                    <a
+                      href={event.eventUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      Learn More
+                      <ArrowRight className="h-4 w-4 transition-transform group-hover/btn:translate-x-1" />
+                    </a>
                   </Button>
                 </div>
               </motion.div>
@@ -120,5 +135,7 @@ export const EventsSection = () => {
         </div>
       </div>
     </section>
+
+    <DownloadCalendar open={calendarOpen} onOpenChange={setCalendarOpen} />
   );
 };

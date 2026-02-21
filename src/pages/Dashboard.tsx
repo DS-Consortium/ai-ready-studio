@@ -1,23 +1,26 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import QRCodeGenerator from "@/components/QRCodeGenerator";
-import { 
-  Video, 
-  Trophy, 
-  Calendar, 
-  Gift, 
-  LogOut, 
-  Plus, 
+import {
+  Video,
+  Trophy,
+  Calendar,
+  Gift,
+  LogOut,
+  Plus,
   Play,
+  Pause,
   Heart,
   Eye,
-  Settings,
   Home,
-  Shield
+  Shield,
+  X,
+  Volume2,
+  VolumeX,
 } from "lucide-react";
 
 interface UserProfile {
@@ -36,18 +39,173 @@ interface UserVideo {
   created_at: string;
 }
 
+// ─── Inline Video Player Card ─────────────────────────────────────────────────
+const VideoCard = ({ video }: { video: UserVideo }) => {
+  const [playing, setPlaying] = useState(false);
+  const [muted, setMuted] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  const togglePlay = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!videoRef.current) return;
+    if (playing) {
+      videoRef.current.pause();
+    } else {
+      videoRef.current.play();
+    }
+    setPlaying(!playing);
+  };
+
+  const toggleMute = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!videoRef.current) return;
+    videoRef.current.muted = !muted;
+    setMuted(!muted);
+  };
+
+  const handleTimeUpdate = () => {
+    if (!videoRef.current) return;
+    const pct = (videoRef.current.currentTime / videoRef.current.duration) * 100;
+    setProgress(isNaN(pct) ? 0 : pct);
+  };
+
+  const handleEnded = () => {
+    setPlaying(false);
+    setProgress(0);
+    if (videoRef.current) videoRef.current.currentTime = 0;
+  };
+
+  const handleProgressClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!videoRef.current) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const ratio = (e.clientX - rect.left) / rect.width;
+    videoRef.current.currentTime = ratio * videoRef.current.duration;
+  };
+
+  return (
+    <div className="group rounded-2xl border border-border bg-card overflow-hidden transition-all hover:border-primary/50 hover:shadow-lg">
+      {/* ── Video area ── */}
+      <div className="aspect-video bg-muted relative overflow-hidden">
+        {/* Inline video element — always rendered so it plays in-place */}
+        <video
+          ref={videoRef}
+          src={video.video_url}
+          className="absolute inset-0 w-full h-full object-cover"
+          playsInline
+          preload="metadata"
+          onTimeUpdate={handleTimeUpdate}
+          onEnded={handleEnded}
+          onClick={togglePlay}
+        />
+
+        {/* Thumbnail overlay — hidden once playing */}
+        {!playing && video.thumbnail_url && (
+          <img
+            src={video.thumbnail_url}
+            alt={video.title}
+            className="absolute inset-0 w-full h-full object-cover pointer-events-none"
+          />
+        )}
+
+        {/* Fallback icon when no thumbnail and not playing */}
+        {!playing && !video.thumbnail_url && (
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+            <Video className="h-8 w-8 text-muted-foreground" />
+          </div>
+        )}
+
+        {/* Play / Pause button overlay */}
+        <AnimatePresence>
+          {!playing && (
+            <motion.button
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.8 }}
+              onClick={togglePlay}
+              className="absolute inset-0 flex items-center justify-center bg-black/30 hover:bg-black/40 transition-colors"
+            >
+              <div className="w-14 h-14 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center border border-white/40">
+                <Play className="h-6 w-6 text-white fill-white ml-0.5" />
+              </div>
+            </motion.button>
+          )}
+        </AnimatePresence>
+
+        {/* Controls bar (visible while playing) */}
+        {playing && (
+          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-2 z-10">
+            {/* Progress bar */}
+            <div
+              className="w-full h-1 bg-white/30 rounded-full mb-1.5 cursor-pointer"
+              onClick={handleProgressClick}
+            >
+              <div
+                className="h-full bg-white rounded-full transition-all"
+                style={{ width: `${progress}%` }}
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <button onClick={togglePlay} className="text-white hover:text-white/80">
+                <Pause size={14} />
+              </button>
+              <button onClick={toggleMute} className="text-white hover:text-white/80">
+                {muted ? <VolumeX size={14} /> : <Volume2 size={14} />}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Status badge */}
+        <div className="absolute top-2 right-2 z-10">
+          {video.is_approved ? (
+            <span className="px-2 py-1 rounded-full bg-green-500 text-white text-xs font-medium">
+              Live
+            </span>
+          ) : video.is_submitted ? (
+            <span className="px-2 py-1 rounded-full bg-amber-500 text-white text-xs font-medium">
+              In Review
+            </span>
+          ) : (
+            <span className="px-2 py-1 rounded-full bg-muted text-muted-foreground text-xs font-medium">
+              Draft
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Card info */}
+      <div className="p-4">
+        <h3 className="font-semibold truncate">{video.title}</h3>
+        <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
+          <span className="flex items-center gap-1">
+            <Eye className="h-4 w-4" />
+            {video.views_count}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ─── Dashboard Page ───────────────────────────────────────────────────────────
 const Dashboard = () => {
   const { user, loading, signOut } = useAuth();
   const navigate = useNavigate();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [videos, setVideos] = useState<UserVideo[]>([]);
-  const [stats, setStats] = useState({ totalVotes: 0, totalViews: 0, totalVideos: 0, registeredEvents: 0, availableRewards: 0, leaderboardRank: "-" });
+  const [stats, setStats] = useState({
+    totalVotes: 0,
+    totalViews: 0,
+    totalVideos: 0,
+    registeredEvents: 0,
+    availableRewards: 0,
+    leaderboardRank: "-",
+  });
   const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
-    if (!loading && !user) {
-      navigate("/auth");
-    }
+    if (!loading && !user) navigate("/auth");
   }, [user, loading, navigate]);
 
   useEffect(() => {
@@ -71,44 +229,40 @@ const Dashboard = () => {
 
   const fetchProfile = async () => {
     if (!user) return;
-    
     const { data } = await supabase
       .from("profiles")
       .select("display_name, avatar_url")
       .eq("user_id", user.id)
       .maybeSingle();
-    
-    if (data) {
-      setProfile(data);
-    }
+    if (data) setProfile(data);
   };
 
   const fetchVideos = async () => {
     if (!user) return;
-    
     const { data } = await supabase
       .from("videos")
       .select("id, title, video_url, thumbnail_url, views_count, is_submitted, is_approved, created_at")
       .eq("user_id", user.id)
       .order("created_at", { ascending: false });
-    
+
     if (data) {
       setVideos(data);
-      
-      // Calculate stats
       const totalViews = data.reduce((sum, v) => sum + (v.views_count || 0), 0);
-      
-      // Fetch additional stats
-      const { count: eventCount } = await supabase.from("event_registrations").select("*", { count: 'exact', head: true }).eq("user_id", user.id);
-      const { count: voteCount } = await supabase.from("votes").select("*", { count: 'exact', head: true }).eq("user_id", user.id);
-      
+      const { count: eventCount } = await supabase
+        .from("event_registrations")
+        .select("*", { count: "exact", head: true })
+        .eq("user_id", user.id);
+      const { count: voteCount } = await supabase
+        .from("votes")
+        .select("*", { count: "exact", head: true })
+        .eq("user_id", user.id);
       setStats({
         totalVideos: data.length,
         totalViews,
         totalVotes: voteCount || 0,
         registeredEvents: eventCount || 0,
-        availableRewards: 0, // Logic for rewards
-        leaderboardRank: "1,240" // Placeholder for rank
+        availableRewards: 0,
+        leaderboardRank: "1,240",
       });
     }
   };
@@ -137,7 +291,6 @@ const Dashboard = () => {
             </div>
             <span className="font-display font-bold">AI Ready</span>
           </Link>
-
           <div className="flex items-center gap-3">
             <QRCodeGenerator url={window.location.origin} title="Share App" />
             <Button variant="ghost" size="icon" asChild>
@@ -161,12 +314,8 @@ const Dashboard = () => {
 
       {/* Main */}
       <main className="container py-8">
-        {/* Welcome section */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-8"
-        >
+        {/* Welcome */}
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
           <h1 className="font-display text-3xl font-bold">
             Welcome back, {profile?.display_name || user?.email?.split("@")[0]}!
           </h1>
@@ -190,7 +339,6 @@ const Dashboard = () => {
               <p className="text-sm opacity-80">Record your AI declaration</p>
             </div>
           </Link>
-
           <Link to="/gallery">
             <div className="group rounded-2xl border border-border bg-card p-6 transition-all hover:border-primary/50 hover:shadow-lg">
               <Trophy className="h-8 w-8 mb-3 text-amber-500" />
@@ -198,7 +346,6 @@ const Dashboard = () => {
               <p className="text-sm text-muted-foreground">Rank: #{stats.leaderboardRank}</p>
             </div>
           </Link>
-
           <Link to="/events">
             <div className="group rounded-2xl border border-border bg-card p-6 transition-all hover:border-primary/50 hover:shadow-lg">
               <Calendar className="h-8 w-8 mb-3 text-blue-500" />
@@ -206,7 +353,6 @@ const Dashboard = () => {
               <p className="text-sm text-muted-foreground">{stats.registeredEvents} Registered</p>
             </div>
           </Link>
-
           <Link to="/rewards">
             <div className="group rounded-2xl border border-border bg-card p-6 transition-all hover:border-primary/50 hover:shadow-lg">
               <Gift className="h-8 w-8 mb-3 text-pink-500" />
@@ -234,7 +380,6 @@ const Dashboard = () => {
               </div>
             </div>
           </div>
-
           <div className="rounded-2xl border border-border bg-card p-6">
             <div className="flex items-center gap-3">
               <div className="w-12 h-12 rounded-xl bg-pink-500/10 flex items-center justify-center">
@@ -246,7 +391,6 @@ const Dashboard = () => {
               </div>
             </div>
           </div>
-
           <div className="rounded-2xl border border-border bg-card p-6">
             <div className="flex items-center gap-3">
               <div className="w-12 h-12 rounded-xl bg-blue-500/10 flex items-center justify-center">
@@ -260,7 +404,7 @@ const Dashboard = () => {
           </div>
         </motion.div>
 
-        {/* My Videos */}
+        {/* My Videos — inline playback */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -293,59 +437,7 @@ const Dashboard = () => {
           ) : (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {videos.map((video) => (
-                <div
-                  key={video.id}
-                  className="group rounded-2xl border border-border bg-card overflow-hidden transition-all hover:border-primary/50 hover:shadow-lg"
-                >
-                  <div className="aspect-video bg-muted relative">
-                    {video.thumbnail_url ? (
-                      <img
-                        src={video.thumbnail_url}
-                        alt={video.title}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <Video className="h-8 w-8 text-muted-foreground" />
-                      </div>
-                    )}
-                    <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                      <Button 
-                        size="icon" 
-                        variant="secondary" 
-                        className="rounded-full"
-                        onClick={() => window.open(video.video_url, '_blank')}
-                      >
-                        <Play className="h-5 w-5" />
-                      </Button>
-                    </div>
-                    {/* Status badge */}
-                    <div className="absolute top-2 right-2">
-                      {video.is_approved ? (
-                        <span className="px-2 py-1 rounded-full bg-green-500 text-white text-xs font-medium">
-                          Approved
-                        </span>
-                      ) : video.is_submitted ? (
-                        <span className="px-2 py-1 rounded-full bg-amber-500 text-white text-xs font-medium">
-                          Pending
-                        </span>
-                      ) : (
-                        <span className="px-2 py-1 rounded-full bg-muted text-muted-foreground text-xs font-medium">
-                          Draft
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  <div className="p-4">
-                    <h3 className="font-semibold truncate">{video.title}</h3>
-                    <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
-                      <span className="flex items-center gap-1">
-                        <Eye className="h-4 w-4" />
-                        {video.views_count}
-                      </span>
-                    </div>
-                  </div>
-                </div>
+                <VideoCard key={video.id} video={video} />
               ))}
             </div>
           )}

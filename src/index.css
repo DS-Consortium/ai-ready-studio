@@ -283,3 +283,43 @@
 ::-webkit-scrollbar-thumb:hover {
   background: hsl(var(--muted-foreground) / 0.5);
 }
+
+/* ── AR Text Lens Animations ── */
+@keyframes lens-slide-up {
+  0%   { opacity: 0; transform: translateY(24px) scale(0.92); }
+  60%  { opacity: 1; transform: translateY(-4px) scale(1.02); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes lens-glow-pulse {
+  0%, 100% { text-shadow: 0 0 12px currentColor, 0 0 24px currentColor; }
+  50%       { text-shadow: 0 0 24px currentColor, 0 0 48px currentColor, 0 0 6px #fff; }
+}
+
+@keyframes lens-word-pop {
+  0%   { opacity: 0; transform: scale(0.6) rotate(-4deg); }
+  70%  { opacity: 1; transform: scale(1.08) rotate(1deg); }
+  100% { opacity: 1; transform: scale(1) rotate(0deg); }
+}
+
+@keyframes lens-shimmer-text {
+  0%   { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+
+.lens-slide-up   { animation: lens-slide-up 0.55s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
+.lens-glow-pulse { animation: lens-glow-pulse 2.5s ease-in-out infinite; }
+.lens-word-pop   { animation: lens-word-pop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
+
+.lens-shimmer-text {
+  background: linear-gradient(90deg, currentColor 0%, #fff 40%, currentColor 60%, currentColor 100%);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: lens-shimmer-text 2.4s linear infinite;
+}
+
+/* Hide scrollbar utility */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
