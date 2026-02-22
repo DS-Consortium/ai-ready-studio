@@ -26,7 +26,6 @@
     "icon": "assets/appIcon.ico"
   },
   "appx": {
-    "allowElevation": true,
     "identityName": "com.dsconsortium.aiready",
     "publisherDisplayName": "DS Consortium"
   },
