@@ -66,3 +66,47 @@ export function moderateLocally(title: string, description = ""): ModerationResp
 
   return { status: "approved", message: "Content passed local moderation." };
 }
+
+
+/**
+ * Poll the moderation status of a video until it's approved or flagged.
+ * Checks every 500ms for up to 60 seconds (120 attempts).
+ * Returns the final is_approved status.
+ */
+export async function pollModerationStatus(
+  videoId: string,
+  maxAttempts = 120,
+  intervalMs = 500
+): Promise<{ approved: boolean; reason?: string }> {
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    try {
+      const { data: video, error } = await supabase
+        .from("videos")
+        .select("is_approved, description")
+        .eq("id", videoId)
+        .single();
+
+      if (error) {
+        console.error("Poll error:", error);
+        await new Promise((r) => setTimeout(r, intervalMs));
+        continue;
+      }
+
+      // If is_approved is set (true or false), moderation is complete
+      if (video.is_approved !== null && video.is_approved !== undefined) {
+        return {
+          approved: video.is_approved,
+          reason: video.description,
+        };
+      }
+    } catch (err) {
+      console.error("Poll exception:", err);
+    }
+
+    // Wait before next attempt
+    await new Promise((r) => setTimeout(r, intervalMs));
+  }
+
+  // Timeout — return false (not approved)
+  return { approved: false, reason: "Moderation timeout" };
+}
