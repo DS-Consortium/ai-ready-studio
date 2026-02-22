@@ -33,7 +33,7 @@ jobs:
 
       - name: Install Electron dependencies
         working-directory: electron
-        run: npm install
+        run: npm install --legacy-peer-deps
 
       - name: Build Windows Executable (NSIS & MSIX)
         working-directory: electron
