@@ -4,7 +4,15 @@ const config: CapacitorConfig = {
   appId: 'com.dsconsortium.aiready',
   appName: 'I Am AI Ready',
   webDir: 'dist',
-  bundledWebRuntime: false
+  bundledWebRuntime: false,
+  plugins: {
+    Camera: {
+      permissions: ['camera', 'photos']
+    },
+    MediaCapture: {
+      permissions: ['microphone']
+    }
+  }
 };
 
 export default config;
