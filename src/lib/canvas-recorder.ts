@@ -68,7 +68,9 @@ export const drawARTextLens = (
   // Line 2 (e.g., "AI READY")
   ctx.font = `bold 80px 'Playfair Display', serif`;
   ctx.fillStyle = cfg.color;
-  ctx.textShadow = `0 0 20px ${cfg.color}99`;
+  // Note: textShadow is not a canvas property; use shadowColor/shadowBlur instead
+  ctx.shadowColor = `${cfg.color}99`;
+  ctx.shadowBlur = 20;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
 
@@ -107,7 +109,7 @@ export class CanvasVideoRecorder {
   private ctx: CanvasRenderingContext2D;
   private animationFrameId: number | null = null;
   private stream: MediaStream;
-  private videoTrack: MediaStreamVideoTrack;
+  private videoEl: HTMLVideoElement;
   private canvasStream: MediaStream;
   private filter: AIFilter;
 
@@ -119,7 +121,13 @@ export class CanvasVideoRecorder {
   ) {
     this.stream = stream;
     this.filter = filter;
-    this.videoTrack = stream.getVideoTracks()[0] as MediaStreamVideoTrack;
+
+    // Create a hidden video element to draw frames from
+    this.videoEl = document.createElement("video");
+    this.videoEl.srcObject = stream;
+    this.videoEl.muted = true;
+    this.videoEl.playsInline = true;
+    this.videoEl.play();
 
     // Create canvas
     this.canvas = document.createElement("canvas");
@@ -163,7 +171,7 @@ export class CanvasVideoRecorder {
    */
   private drawLoop = () => {
     // Draw video frame from camera
-    this.ctx.drawImage(this.videoTrack, 0, 0, this.canvas.width, this.canvas.height);
+    this.ctx.drawImage(this.videoEl, 0, 0, this.canvas.width, this.canvas.height);
 
     // Draw AR text lens overlay
     drawARTextLens(this.ctx, this.filter, this.canvas.width, this.canvas.height);

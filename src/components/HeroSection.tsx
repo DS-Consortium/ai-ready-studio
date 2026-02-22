@@ -1,4 +1,5 @@
 import { motion } from "framer-motion";
+import { useNavigate } from "react-router-dom";
 import { ArrowRight, Play, Users, Video, Award } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { VideoTutorial } from "./VideoTutorial";
@@ -10,6 +11,7 @@ const stats = [
 ];
 
 export const HeroSection = () => {
+  const navigate = useNavigate();
   return (
     <section className="relative min-h-screen overflow-hidden hero-gradient">
       {/* Animated background elements */}
