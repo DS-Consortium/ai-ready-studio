@@ -1,4 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
+import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
+import { VideoRecorder, VideoRecorderOptions } from '@capacitor-community/video-recorder';
 import { Share } from '@capacitor/share';
 import { useNavigate, Link, useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
@@ -11,8 +13,13 @@ import {
   ArrowLeft,
   Video,
   Square,
+  Camera,
+  CameraIcon,
+  Play,
+  Pause,
   RotateCcw,
   Check,
+  Upload,
   Sparkles,
 } from "lucide-react";
 import { moderateVideo, moderateLocally } from "@/lib/moderation";
