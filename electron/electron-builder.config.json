@@ -1,5 +1,5 @@
 {
-  "appId": "com.yourdoamnin.yourapp",
+  "appId": "com.dsconsortium.aiready",
   "directories": {
     "buildResources": "resources"
   },
@@ -18,8 +18,17 @@
     "allowToChangeInstallationDirectory": true
   },
   "win": {
-    "target": "nsis",
+    "target": [
+      "nsis",
+      "msix"
+    ],
     "icon": "assets/appIcon.ico"
+  },
+  "msix": {
+    "allowElevation": true,
+    "oneClick": true,
+    "identityName": "com.dsconsortium.aiready",
+    "publisherDisplayName": "DS Consortium"
   },
   "mac": {
     "category": "your.app.category.type",
