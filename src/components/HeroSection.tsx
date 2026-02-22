@@ -86,7 +86,7 @@ export const HeroSection = () => {
           transition={{ duration: 0.6, delay: 0.1 }}
           className="max-w-4xl font-display text-4xl font-bold leading-tight tracking-tight text-white sm:text-5xl md:text-6xl lg:text-7xl"
         >
-          Are You{" "}
+          Are You {" "}
           <span className="relative">
             <span className="relative z-10 bg-gradient-to-r from-filter-savvy via-filter-accountable to-filter-driven bg-clip-text text-transparent">
               AI Ready
