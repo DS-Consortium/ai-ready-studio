@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Menu, X, Play, Grid3X3, BookOpen, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -11,6 +12,7 @@ const navItems = [
 
 export const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const navigate = useNavigate();
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 glass border-b border-border/50">
@@ -43,9 +45,8 @@ export const Header = () => {
 
         {/* Desktop CTA */}
         <div className="hidden items-center gap-3 md:flex">
-          <Button variant="ghost" size="sm" className="gap-2">
-            <User className="h-4 w-4" 
-            onClick={() => navigate("/dashboard")}/>
+          <Button variant="ghost" size="sm" className="gap-2" onClick={() => navigate("/dashboard")}>
+            <User className="h-4 w-4" />
             Sign In
           </Button>
           <Button variant="hero" size="sm">
@@ -85,9 +86,8 @@ export const Header = () => {
                 </a>
               ))}
               <div className="mt-2 flex flex-col gap-2 border-t border-border pt-4">
-                <Button variant="ghost" className="justify-start gap-2">
-                  <User className="h-4 w-4" 
-                  onClick={() => navigate("/dashboard")}/>
+                <Button variant="ghost" className="justify-start gap-2" onClick={() => navigate("/dashboard")}>
+                  <User className="h-4 w-4" />
                   Sign In
                 </Button>
                 <Button variant="hero"

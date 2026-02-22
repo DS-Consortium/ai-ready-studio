@@ -1,4 +1,5 @@
 import { motion } from "framer-motion";
+import { useNavigate } from "react-router-dom";
 import { ArrowRight, Play, Users, Video, Award } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { VideoTutorial } from "./VideoTutorial";
@@ -10,6 +11,7 @@ const stats = [
 ];
 
 export const HeroSection = () => {
+  const navigate = useNavigate();
   return (
     <section className="relative min-h-screen overflow-hidden hero-gradient">
       {/* Animated background elements */}
@@ -84,7 +86,7 @@ export const HeroSection = () => {
           transition={{ duration: 0.6, delay: 0.1 }}
           className="max-w-4xl font-display text-4xl font-bold leading-tight tracking-tight text-white sm:text-5xl md:text-6xl lg:text-7xl"
         >
-          Are You{" "}
+          Are You {" "}
           <span className="relative">
             <span className="relative z-10 bg-gradient-to-r from-filter-savvy via-filter-accountable to-filter-driven bg-clip-text text-transparent">
               AI Ready

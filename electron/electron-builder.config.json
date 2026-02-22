@@ -1,5 +1,6 @@
 {
-  "appId": "com.yourdoamnin.yourapp",
+  "appId": "com.dsconsortium.aiready",
+  "productName": "I Am AI Ready",
   "directories": {
     "buildResources": "resources"
   },
@@ -18,8 +19,15 @@
     "allowToChangeInstallationDirectory": true
   },
   "win": {
-    "target": "nsis",
+    "target": [
+      "nsis",
+      "appx"
+    ],
     "icon": "assets/appIcon.ico"
+  },
+  "appx": {
+    "identityName": "com.dsconsortium.aiready",
+    "publisherDisplayName": "DS Consortium"
   },
   "mac": {
     "category": "your.app.category.type",

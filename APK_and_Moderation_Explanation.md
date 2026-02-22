@@ -18,74 +18,115 @@ A video enters the "In Review" status when the server-side Edge Function moderat
 
 ## Generating the Android APK
 
-The AI Ready Studio project is built using Capacitor, which allows for easy deployment to native mobile platforms like Android. To generate an Android Application Package (APK) for testing, follow these steps:
+The AI Ready Studio project is built using Capacitor, which allows for easy deployment to native mobile platforms like Android.
 
-### Prerequisites
+> **Important:** This project requires **Node.js v22.0.0 or higher** (enforced by `@capacitor/cli@8.x`). Using an older version (e.g., v16 or v20) will cause installation and build failures. Always verify your Node.js version before proceeding.
 
-*   **Node.js and npm/pnpm:** Ensure you have these installed.
+### Option A: Automated APK via GitHub Actions (Recommended)
+
+A GitHub Actions workflow (`.github/workflows/build-apk.yml`) is included in the repository. It automatically builds a debug APK on every push to `main` or on demand.
+
+**To trigger a manual build:**
+
+1. Go to your repository on GitHub.
+2. Click the **Actions** tab.
+3. Select **Build Android APK** from the left sidebar.
+4. Click **Run workflow** → **Run workflow**.
+5. Once the run completes, download the `app-debug.apk` artifact from the workflow summary page.
+
+---
+
+### Option B: Local Build
+
+#### Prerequisites
+
+*   **Node.js v22+**: Install via [nvm](https://github.com/nvm-sh/nvm) (recommended) or the [official installer](https://nodejs.org/). The project includes an `.nvmrc` file — run `nvm install && nvm use` to switch automatically.
 *   **Android Studio:** Install Android Studio, which includes the Android SDK and necessary command-line tools. Set up your `ANDROID_HOME` environment variable.
-*   **Java Development Kit (JDK):** JDK 11 or higher is required.
+*   **Java Development Kit (JDK) 17:** JDK 17 is required for the Gradle build.
 
-### Steps to Generate APK
+#### Steps to Generate APK
 
-1.  **Navigate to Project Directory:**
+1.  **Verify Node.js version:**
+
+    ```bash
+    node -v   # Must be v22.0.0 or higher
+    ```
+
+    If you use `nvm`, the project includes an `.nvmrc` file — simply run:
+
+    ```bash
+    nvm install   # installs the version specified in .nvmrc (22)
+    nvm use       # switches to it
+    ```
+
+2.  **Navigate to Project Directory:**
     Open your terminal or command prompt and navigate to the root of your `ai-ready-studio` project:
 
     ```bash
-    cd /home/ubuntu/ai-ready-studio
+    cd /path/to/ai-ready-studio
     ```
 
-2.  **Install Dependencies:**
+3.  **Install Dependencies:**
     If you haven't already, install the project's dependencies:
 
     ```bash
-    pnpm install
+    npm install
     ```
 
-3.  **Build Web Assets:**
+4.  **Build Web Assets:**
     Capacitor wraps your web application. First, you need to build the web project for production:
 
     ```bash
-    pnpm run build
+    npm run build
     ```
 
-    This command will create a `dist` directory containing your optimized web assets.
+    This command will create a `dist/` directory containing your optimized web assets.
 
-4.  **Add Android Platform (if not already added):**
-    If the Android platform has not been added to your Capacitor project, add it now:
+5.  **Add Android Platform (first time only):**
+    If the `android/` directory is not already present:
 
     ```bash
-    pnpm cap add android
+    npx cap add android
     ```
 
-5.  **Sync Capacitor Project:**
+6.  **Sync Capacitor Project:**
     This command copies your web assets into the Android project and updates Capacitor's native dependencies:
 
     ```bash
-    pnpm cap sync
+    npx cap sync
     ```
 
-6.  **Open Android Studio:**
+7.  **Open Android Studio:**
     Open the Android project in Android Studio:
 
     ```bash
-    pnpm cap open android
+    npx cap open android
     ```
 
-    Android Studio will launch and open the `android` directory of your project. It might take some time to sync Gradle and download necessary components.
+    Android Studio will launch and open the `android/` directory. Allow Gradle to sync and download necessary components.
 
-7.  **Generate Signed APK/Bundle:**
+8.  **Generate Signed APK/Bundle:**
     Once Android Studio is ready:
-    *   Go to `Build` > `Generate Signed Bundle / APK...`.
-    *   Select `Android App Bundle` or `APK`. For testing, `APK` is simpler.
-    *   Click `Next`.
-    *   **Keystore path:** If you have an existing keystore, use it. Otherwise, click `Create new...` to generate a new one. Remember to keep your keystore file and password safe.
-    *   Fill in the alias, password, and validity information for your key.
-    *   Click `Next`.
-    *   Select `debug` for testing purposes. For a release build, select `release`.
-    *   Check `V1 (Jar Signature)` and `V2 (Full APK Signature)` for signature versions.
-    *   Click `Finish`.
+    *   Go to **Build** → **Generate Signed Bundle / APK...**
+    *   Select **APK** (for testing) or **Android App Bundle** (for Play Store).
+    *   Click **Next**.
+    *   **Keystore path:** Use an existing keystore or click **Create new...** to generate one. Keep your keystore file and passwords safe.
+    *   Fill in the alias, password, and validity information.
+    *   Click **Next**.
+    *   Select **debug** for testing or **release** for production.
+    *   Check **V1 (Jar Signature)** and **V2 (Full APK Signature)**.
+    *   Click **Finish**.
 
-    Android Studio will build the APK. Once complete, a notification will appear with a link to locate the generated APK file (usually in `android/app/build/outputs/apk/debug/`).
+    The APK will be generated at `android/app/build/outputs/apk/debug/app-debug.apk` (debug) or the equivalent release path.
 
-This APK file can then be installed on your Android device for testing.
+---
+
+### Troubleshooting
+
+| Error | Cause | Fix |
+|---|---|---|
+| `This version of pnpm requires at least Node.js v18.12` | Node.js version too old | Upgrade to Node.js v22 using `nvm install 22 && nvm use 22` |
+| `[fatal] The Capacitor CLI requires NodeJS >=22.0.0` | Node.js version below 22 | Same as above |
+| `"default" is not exported by "src/pages/Record.tsx"` | Missing default export in Record.tsx | Already fixed in the latest commit |
+| `Error: Expected "0.25.0" but got "0.21.5"` (esbuild) | Stale `node_modules` from a previous Node version | Delete `node_modules` and `package-lock.json`, then re-run `npm install` |
+| `vite: not found` | Dependencies not installed or install failed | Ensure Node.js v22+ is active, then re-run `npm install` |

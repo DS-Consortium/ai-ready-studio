@@ -2,12 +2,12 @@
  * canvas-recorder.ts
  *
  * Implements Canvas-based video recording that bakes AR text lens filters
- * directly into the recorded video stream using OffscreenCanvas and MediaRecorder.
+ * directly into the recorded video stream using MediaRecorder and Canvas API.
  */
 
 import { AIFilter } from "@/lib/filters";
 
-interface LensConfig {
+export interface LensConfig {
   line1: string;
   line2: string;
   color: string;
@@ -53,8 +53,15 @@ export const drawARTextLens = (
 ) => {
   const cfg = getLensConfig(filter);
 
-  // Draw semi-transparent background for text readability
-  ctx.fillStyle = "rgba(0, 0, 0, 0.3)";
+  // Clear shadow for background
+  ctx.shadowBlur = 0;
+  
+  // Draw semi-transparent gradient background for text readability at bottom
+  const gradient = ctx.createLinearGradient(0, canvasHeight * 0.5, 0, canvasHeight);
+  gradient.addColorStop(0, "rgba(0, 0, 0, 0)");
+  gradient.addColorStop(0.4, "rgba(0, 0, 0, 0.4)");
+  gradient.addColorStop(1, "rgba(0, 0, 0, 0.7)");
+  ctx.fillStyle = gradient;
   ctx.fillRect(0, canvasHeight * 0.5, canvasWidth, canvasHeight * 0.5);
 
   // Line 1 (e.g., "I AM")
@@ -63,38 +70,36 @@ export const drawARTextLens = (
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   ctx.letterSpacing = "0.15em";
-  ctx.fillText(cfg.line1, canvasWidth / 2, canvasHeight * 0.6);
+  ctx.fillText(cfg.line1, canvasWidth / 2, canvasHeight * 0.7);
 
   // Line 2 (e.g., "AI READY")
-  ctx.font = `bold 80px 'Playfair Display', serif`;
+  ctx.font = `bold 90px 'Playfair Display', serif`;
   ctx.fillStyle = cfg.color;
-  ctx.textShadow = `0 0 20px ${cfg.color}99`;
+  
+  // Add a glow effect
+  ctx.shadowColor = cfg.color;
+  ctx.shadowBlur = 15;
+  
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-
+  
   const lines = cfg.line2.split("\n");
-  const lineHeight = 100;
-  const startY = canvasHeight * 0.68;
+  const lineHeight = 110;
+  const startY = canvasHeight * 0.78;
+  
   lines.forEach((line, index) => {
     ctx.fillText(line, canvasWidth / 2, startY + index * lineHeight);
   });
 
   // Tagline
+  ctx.shadowBlur = 0;
   if (cfg.tagline) {
-    ctx.font = "bold 16px 'Inter', sans-serif";
-    ctx.fillStyle = "rgba(255, 255, 255, 0.75)";
+    ctx.font = "bold 24px 'Inter', sans-serif";
+    ctx.fillStyle = "rgba(255, 255, 255, 0.8)";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.fillText(cfg.tagline, canvasWidth / 2, canvasHeight * 0.85);
+    ctx.fillText(cfg.tagline, canvasWidth / 2, canvasHeight * 0.92);
   }
-
-  // Decorative line
-  ctx.strokeStyle = cfg.color;
-  ctx.lineWidth = 3;
-  ctx.beginPath();
-  ctx.moveTo(canvasWidth / 2 - 60, canvasHeight * 0.88);
-  ctx.lineTo(canvasWidth / 2 + 60, canvasHeight * 0.88);
-  ctx.stroke();
 };
 
 /**
@@ -107,8 +112,8 @@ export class CanvasVideoRecorder {
   private ctx: CanvasRenderingContext2D;
   private animationFrameId: number | null = null;
   private stream: MediaStream;
-  private videoTrack: MediaStreamVideoTrack;
-  private canvasStream: MediaStream;
+  private videoEl: HTMLVideoElement;
+  private canvasStream: MediaStream | null = null;
   private filter: AIFilter;
 
   constructor(
@@ -119,21 +124,19 @@ export class CanvasVideoRecorder {
   ) {
     this.stream = stream;
     this.filter = filter;
-    this.videoTrack = stream.getVideoTracks()[0] as MediaStreamVideoTrack;
+
+    // Create a hidden video element to draw frames from
+    this.videoEl = document.createElement("video");
+    this.videoEl.srcObject = stream;
+    this.videoEl.muted = true;
+    this.videoEl.playsInline = true;
+    this.videoEl.play();
 
     // Create canvas
     this.canvas = document.createElement("canvas");
     this.canvas.width = canvasWidth;
     this.canvas.height = canvasHeight;
-    this.ctx = this.canvas.getContext("2d")!;
-
-    // Get canvas stream
-    this.canvasStream = this.canvas.captureStream(30);
-
-    // Add audio tracks from original stream
-    stream.getAudioTracks().forEach((track) => {
-      this.canvasStream.addTrack(track);
-    });
+    this.ctx = this.canvas.getContext("2d", { alpha: false })!;
   }
 
   /**
@@ -141,19 +144,26 @@ export class CanvasVideoRecorder {
    */
   start() {
     this.chunks = [];
+    
+    // Get canvas stream
+    this.canvasStream = this.canvas.captureStream(30);
+    
+    // Add audio tracks from original stream
+    this.stream.getAudioTracks().forEach((track) => {
+      this.canvasStream?.addTrack(track);
+    });
 
     const mimeType = MediaRecorder.isTypeSupported("video/webm;codecs=vp9")
       ? "video/webm;codecs=vp9"
       : "video/webm";
-
+      
     this.mediaRecorder = new MediaRecorder(this.canvasStream, { mimeType });
-
     this.mediaRecorder.ondataavailable = (e) => {
       if (e.data.size > 0) this.chunks.push(e.data);
     };
-
+    
     this.mediaRecorder.start(100);
-
+    
     // Draw filter overlay on canvas continuously
     this.drawLoop();
   }
@@ -163,11 +173,11 @@ export class CanvasVideoRecorder {
    */
   private drawLoop = () => {
     // Draw video frame from camera
-    this.ctx.drawImage(this.videoTrack, 0, 0, this.canvas.width, this.canvas.height);
-
+    this.ctx.drawImage(this.videoEl, 0, 0, this.canvas.width, this.canvas.height);
+    
     // Draw AR text lens overlay
     drawARTextLens(this.ctx, this.filter, this.canvas.width, this.canvas.height);
-
+    
     this.animationFrameId = requestAnimationFrame(this.drawLoop);
   };
 
@@ -183,7 +193,6 @@ export class CanvasVideoRecorder {
         };
         this.mediaRecorder.stop();
       }
-
       if (this.animationFrameId !== null) {
         cancelAnimationFrame(this.animationFrameId);
       }
@@ -197,6 +206,10 @@ export class CanvasVideoRecorder {
     if (this.animationFrameId !== null) {
       cancelAnimationFrame(this.animationFrameId);
     }
-    this.canvasStream.getTracks().forEach((t) => t.stop());
+    if (this.canvasStream) {
+      this.canvasStream.getTracks().forEach((t) => t.stop());
+    }
+    this.videoEl.pause();
+    this.videoEl.srcObject = null;
   }
 }
