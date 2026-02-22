@@ -45,7 +45,7 @@ export const Header = () => {
         <div className="hidden items-center gap-3 md:flex">
           <Button variant="ghost" size="sm" className="gap-2">
             <User className="h-4 w-4" 
-            onClick={() => navigate("/auth")}/>
+            onClick={() => navigate("/dashboard")}/>
             Sign In
           </Button>
           <Button variant="hero" size="sm">
@@ -87,7 +87,7 @@ export const Header = () => {
               <div className="mt-2 flex flex-col gap-2 border-t border-border pt-4">
                 <Button variant="ghost" className="justify-start gap-2">
                   <User className="h-4 w-4" 
-                  onClick={() => navigate("/auth")}/>
+                  onClick={() => navigate("/dashboard")}/>
                   Sign In
                 </Button>
                 <Button variant="hero"

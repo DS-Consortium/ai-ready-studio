@@ -20,7 +20,7 @@ const Auth = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const MAIN_WEBSITE_URL = "https://legroupeds.com/subscribe";
+  const MAIN_WEBSITE_URL = "https://legroupeds.com/auth";
 
   useEffect(() => {
     if (user) {
