@@ -1,5 +1,6 @@
 {
   "appId": "com.dsconsortium.aiready",
+  "productName": "I Am AI Ready",
   "directories": {
     "buildResources": "resources"
   },
@@ -20,13 +21,12 @@
   "win": {
     "target": [
       "nsis",
-      "msix"
+      "appx"
     ],
     "icon": "assets/appIcon.ico"
   },
-  "msix": {
+  "appx": {
     "allowElevation": true,
-    "oneClick": true,
     "identityName": "com.dsconsortium.aiready",
     "publisherDisplayName": "DS Consortium"
   },
