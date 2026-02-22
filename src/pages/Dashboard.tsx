@@ -21,6 +21,7 @@ import {
   X,
   Volume2,
   VolumeX,
+  Trash2,
 } from "lucide-react";
 
 interface UserProfile {
@@ -40,7 +41,12 @@ interface UserVideo {
 }
 
 // ─── Inline Video Player Card ─────────────────────────────────────────────────
-const VideoCard = ({ video }: { video: UserVideo }) => {
+interface VideoCardProps {
+  video: UserVideo;
+  onDelete?: (videoId: string) => void;
+}
+
+const VideoCard = ({ video, onDelete }: VideoCardProps) => {
   const [playing, setPlaying] = useState(false);
   const [muted, setMuted] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -156,8 +162,8 @@ const VideoCard = ({ video }: { video: UserVideo }) => {
           </div>
         )}
 
-        {/* Status badge */}
-        <div className="absolute top-2 right-2 z-10">
+        {/* Status badge + Delete button */}
+        <div className="absolute top-2 right-2 z-10 flex items-center gap-2">
           {video.is_approved ? (
             <span className="px-2 py-1 rounded-full bg-green-500 text-white text-xs font-medium">
               Live
@@ -171,14 +177,24 @@ const VideoCard = ({ video }: { video: UserVideo }) => {
               Draft
             </span>
           )}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              if (onDelete) onDelete(video.id);
+            }}
+            className="p-1.5 rounded-full bg-red-500/20 hover:bg-red-500/40 text-red-500 transition-colors"
+            title="Delete video"
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
         </div>
       </div>
 
       {/* Card info */}
       <div className="p-4">
         <h3 className="font-semibold truncate">{video.title}</h3>
-        <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
-          <span className="flex items-center gap-1">
+        <div className="flex items-center justify-between mt-2">
+          <span className="flex items-center gap-1 text-sm text-muted-foreground">
             <Eye className="h-4 w-4" />
             {video.views_count}
           </span>
@@ -270,6 +286,32 @@ const Dashboard = () => {
   const handleSignOut = async () => {
     await signOut();
     navigate("/");
+  };
+
+  const handleDeleteVideo = async (videoId: string) => {
+    if (!confirm("Are you sure you want to delete this video? This action cannot be undone.")) {
+      return;
+    }
+
+    try {
+      // Delete from storage
+      const video = videos.find((v) => v.id === videoId);
+      if (video) {
+        const fileName = video.video_url.split("/").pop();
+        if (fileName) {
+          await supabase.storage.from("videos").remove([`${user?.id}/${fileName}`]);
+        }
+      }
+
+      // Delete from database
+      const { error } = await supabase.from("videos").delete().eq("id", videoId);
+      if (error) throw error;
+
+      // Refresh videos list
+      setVideos((prev) => prev.filter((v) => v.id !== videoId));
+    } catch (error: any) {
+      console.error("Delete error:", error);
+    }
   };
 
   if (loading) {
@@ -437,7 +479,7 @@ const Dashboard = () => {
           ) : (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {videos.map((video) => (
-                <VideoCard key={video.id} video={video} />
+                <VideoCard key={video.id} video={video} onDelete={handleDeleteVideo} />
               ))}
             </div>
           )}

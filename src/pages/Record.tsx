@@ -1,7 +1,4 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
-import { VideoRecorder, VideoRecorderOptions } from '@capacitor-community/video-recorder';
-import { Share } from '@capacitor/share';
 import { useNavigate, Link, useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/contexts/AuthContext";
@@ -9,32 +6,25 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { AI_FILTERS, getFilterColor, type AIFilter } from "@/lib/filters";
+import { ShareModal } from "@/components/ShareModal";
 import {
   ArrowLeft,
   Video,
   Square,
-  Camera,
-  CameraIcon,
-  Play,
-  Pause,
   RotateCcw,
   Check,
-  Upload,
   Sparkles,
+  Share2,
 } from "lucide-react";
-import { moderateVideo, moderateLocally } from "@/lib/moderation";
+import { moderateVideo, moderateLocally, pollModerationStatus } from "@/lib/moderation";
 
 type RecordingState = "idle" | "recording" | "preview" | "uploading" | "done";
 
 // ─── AR Text Lens overlay definitions ────────────────────────────────────────
 interface LensConfig {
-  /** Primary declaration line, e.g. "I AM" */
   line1: string;
-  /** Secondary declaration line, e.g. "AI READY" */
   line2: string;
-  /** Accent colour (CSS colour string) */
   color: string;
-  /** Optional third line / tagline */
   tagline?: string;
 }
 
@@ -71,7 +61,6 @@ const ARTextLens = ({ filter, visible }: { filter: AIFilter; visible: boolean })
   const [key, setKey] = useState(0);
   const cfg = getLensConfig(filter);
 
-  // Re-trigger animation whenever the filter changes
   useEffect(() => {
     setKey((k) => k + 1);
   }, [filter.id]);
@@ -89,7 +78,6 @@ const ARTextLens = ({ filter, visible }: { filter: AIFilter; visible: boolean })
           transition={{ type: "spring", stiffness: 260, damping: 20 }}
           className="flex flex-col items-center gap-1 px-6 text-center"
         >
-          {/* Line 1 — "I AM" */}
           <motion.span
             initial={{ opacity: 0, letterSpacing: "0.4em" }}
             animate={{ opacity: 1, letterSpacing: "0.25em" }}
@@ -100,7 +88,6 @@ const ARTextLens = ({ filter, visible }: { filter: AIFilter; visible: boolean })
             {cfg.line1}
           </motion.span>
 
-          {/* Line 2 — "AI READY" (shimmer + glow) */}
           <motion.div
             initial={{ opacity: 0, scale: 0.7 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -124,7 +111,6 @@ const ARTextLens = ({ filter, visible }: { filter: AIFilter; visible: boolean })
             ))}
           </motion.div>
 
-          {/* Tagline / hashtag */}
           {cfg.tagline && (
             <motion.span
               initial={{ opacity: 0, y: 8 }}
@@ -137,7 +123,6 @@ const ARTextLens = ({ filter, visible }: { filter: AIFilter; visible: boolean })
             </motion.span>
           )}
 
-          {/* Animated underline accent */}
           <motion.div
             initial={{ scaleX: 0 }}
             animate={{ scaleX: 1 }}
@@ -164,6 +149,7 @@ const Record = () => {
   const [uploadedVideoUrl, setUploadedVideoUrl] = useState<string>("");
   const [countdown, setCountdown] = useState<number | null>(null);
   const [recordingTime, setRecordingTime] = useState(0);
+  const [shareModalOpen, setShareModalOpen] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const previewRef = useRef<HTMLVideoElement>(null);
@@ -171,6 +157,7 @@ const Record = () => {
   const chunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const filterScrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!loading && !user) navigate("/auth");
@@ -219,7 +206,6 @@ const Record = () => {
   };
 
   const startRecording = async () => {
-    // Countdown 3-2-1
     for (let i = 3; i > 0; i--) {
       setCountdown(i);
       await new Promise((r) => setTimeout(r, 1000));
@@ -286,7 +272,6 @@ const Record = () => {
 
     const videoTitle = `My ${selectedFilter.shortName} Declaration`;
 
-    // Step 1: Run local moderation check on the title before uploading
     const localCheck = moderateLocally(videoTitle);
     if (localCheck.status === "flagged") {
       toast({
@@ -299,7 +284,6 @@ const Record = () => {
     }
 
     try {
-      // Step 2: Upload video to storage
       const fileName = `${user.id}/${Date.now()}.webm`;
       const { error: uploadError } = await supabase.storage
         .from("videos")
@@ -308,7 +292,6 @@ const Record = () => {
 
       const { data: urlData } = supabase.storage.from("videos").getPublicUrl(fileName);
 
-      // Step 3: Insert video record (not yet approved)
       const { data: insertedVideo, error: insertError } = await supabase
         .from("videos")
         .insert({
@@ -325,15 +308,23 @@ const Record = () => {
       if (insertError) throw insertError;
 
       // Step 4: Invoke edge function moderation (auto-approves if clean)
-      const moderationResult = await moderateVideo(insertedVideo.id);
+      await moderateVideo(insertedVideo.id);
 
-      if (moderationResult.status === "flagged") {
+      // Step 5: Poll for moderation status (max 60 seconds, checks every 500ms)
+      const pollResult = await pollModerationStatus(insertedVideo.id, 120, 500);
+
+      if (pollResult.approved) {
+        toast({
+          title: "Video approved!",
+          description: "Your video is now live in the gallery.",
+        });
+      } else {
         toast({
           title: "Content flagged for review",
           description: "Your video has been submitted but requires manual review before publishing.",
         });
       }
-      // Whether approved or flagged, proceed to done state
+
       setUploadedVideoUrl(urlData.publicUrl);
       setRecordingState("done");
     } catch (error: any) {
@@ -375,7 +366,7 @@ const Record = () => {
 
         {/* ── UI Overlays ── */}
         <div className="absolute inset-0 flex flex-col justify-between p-6 z-30">
-          {/* Top bar */}
+          {/* Top bar — Back button + Timer */}
           <div className="flex justify-between items-start">
             <Button
               variant="ghost"
@@ -406,11 +397,15 @@ const Record = () => {
             </motion.div>
           )}
 
-          {/* Bottom controls */}
-          <div className="space-y-6">
-            {/* Filter selector (idle only) */}
+          {/* ── BOTTOM CONTROL AREA (Snapchat-style) ── */}
+          <div className="space-y-4">
+            {/* Filter carousel (Snapchat-style horizontal scroll) */}
             {recordingState === "idle" && (
-              <div className="flex overflow-x-auto gap-3 pb-2 no-scrollbar px-8">
+              <div
+                ref={filterScrollRef}
+                className="flex overflow-x-auto gap-3 pb-2 no-scrollbar px-4 justify-center"
+                style={{ scrollBehavior: "smooth" }}
+              >
                 {AI_FILTERS.map((filter) => {
                   const cfg = getLensConfig(filter);
                   const isSelected = selectedFilter?.id === filter.id;
@@ -418,24 +413,27 @@ const Record = () => {
                     <button
                       key={filter.id}
                       onClick={() => setSelectedFilter(filter)}
-                      className={`flex-shrink-0 flex flex-col items-center gap-1 transition-all ${
-                        isSelected ? "scale-110" : "scale-90 opacity-60"
+                      className={`flex-shrink-0 flex flex-col items-center gap-1.5 transition-all duration-200 ${
+                        isSelected ? "scale-100" : "scale-75 opacity-50"
                       }`}
                     >
                       <div
-                        className={`w-14 h-14 rounded-full border-4 flex items-center justify-center transition-all ${
-                          isSelected ? "border-white shadow-lg" : "border-white/30"
+                        className={`w-16 h-16 rounded-full border-4 flex items-center justify-center transition-all ${
+                          isSelected ? "border-white shadow-xl" : "border-white/20"
                         }`}
-                        style={{ backgroundColor: `${cfg.color}33`, borderColor: isSelected ? "#fff" : `${cfg.color}66` }}
+                        style={{
+                          backgroundColor: `${cfg.color}33`,
+                          borderColor: isSelected ? "#fff" : `${cfg.color}44`,
+                        }}
                       >
                         <filter.icon
-                          className="w-7 h-7"
+                          className="w-8 h-8"
                           style={{ color: cfg.color }}
                         />
                       </div>
                       <span
-                        className="text-[9px] font-bold tracking-wide text-center leading-tight max-w-[56px] truncate"
-                        style={{ color: isSelected ? "#fff" : "rgba(255,255,255,0.6)" }}
+                        className="text-[10px] font-bold tracking-wide text-center leading-tight max-w-[64px]"
+                        style={{ color: isSelected ? "#fff" : "rgba(255,255,255,0.5)" }}
                       >
                         {filter.shortName}
                       </span>
@@ -445,12 +443,12 @@ const Record = () => {
               </div>
             )}
 
-            {/* Record / Stop / Submit controls */}
-            <div className="flex justify-center items-center gap-8">
+            {/* Record / Stop / Submit controls — centered */}
+            <div className="flex justify-center items-center">
               {recordingState === "idle" && (
                 <button
                   onClick={startRecording}
-                  className="w-20 h-20 rounded-full border-4 border-white p-1 active:scale-95 transition-transform"
+                  className="w-24 h-24 rounded-full border-4 border-white p-1 active:scale-95 transition-transform shadow-2xl"
                 >
                   <div className="w-full h-full rounded-full bg-white" />
                 </button>
@@ -459,28 +457,28 @@ const Record = () => {
               {recordingState === "recording" && (
                 <button
                   onClick={stopRecording}
-                  className="w-20 h-20 rounded-full border-4 border-white p-1 active:scale-95 transition-transform"
+                  className="w-24 h-24 rounded-full border-4 border-white p-1 active:scale-95 transition-transform shadow-2xl"
                 >
                   <div className="w-full h-full rounded-full bg-red-500 flex items-center justify-center">
-                    <Square className="text-white fill-white" />
+                    <Square className="text-white fill-white w-8 h-8" />
                   </div>
                 </button>
               )}
 
               {recordingState === "preview" && (
-                <div className="flex gap-4 bg-black/40 backdrop-blur-xl p-4 rounded-3xl w-full max-w-sm border border-white/20">
+                <div className="flex gap-4 bg-black/50 backdrop-blur-xl p-4 rounded-3xl border border-white/20">
                   <Button
                     variant="ghost"
                     onClick={resetRecording}
-                    className="text-white gap-2 flex-1"
+                    className="text-white gap-2"
                   >
-                    <RotateCcw /> Retake
+                    <RotateCcw className="w-5 h-5" /> Retake
                   </Button>
                   <Button
                     onClick={handleSubmit}
-                    className="bg-white text-black hover:bg-white/90 gap-2 flex-1"
+                    className="bg-white text-black hover:bg-white/90 gap-2"
                   >
-                    <Check /> Submit
+                    <Check className="w-5 h-5" /> Submit
                   </Button>
                 </div>
               )}
@@ -516,11 +514,9 @@ const Record = () => {
               <div className="space-y-3">
                 <Button
                   className="w-full h-12 gap-2"
-                  onClick={() =>
-                    Share.share({ title: "My AI Ready Declaration", url: uploadedVideoUrl })
-                  }
+                  onClick={() => setShareModalOpen(true)}
                 >
-                  <Sparkles /> Share to Network
+                  <Share2 /> Share to Network
                 </Button>
                 <Button variant="outline" className="w-full h-12" asChild>
                   <Link to="/dashboard">Go to Dashboard</Link>
@@ -530,6 +526,15 @@ const Record = () => {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Share Modal */}
+      <ShareModal
+        open={shareModalOpen}
+        onOpenChange={setShareModalOpen}
+        title={`My ${selectedFilter?.shortName} Declaration`}
+        url={uploadedVideoUrl}
+        hashtags={["AIReady", "AIDeclaration", "DSConsortium"]}
+      />
     </div>
   );
 };
