@@ -1,9 +1,8 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Square, RotateCcw, Check, ArrowLeft, Clock } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { RotateCcw, Check, ArrowLeft } from "lucide-react";
 import { AI_FILTERS, AIFilter } from "@/lib/filters";
-import { getLensConfig } from "@/lib/canvas-recorder";
+import { getLensConfig, CanvasVideoRecorder } from "@/lib/canvas-recorder";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
@@ -12,8 +11,7 @@ type RecordingState = "idle" | "recording" | "preview" | "uploading";
 const Record = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
-
-  const [selectedFilter, setSelectedFilter] = useState<AIFilter | null>(AI_FILTERS[0]);
+  const [selectedFilter, setSelectedFilter] = useState<AIFilter>(AI_FILTERS[0]);
   const [recordingState, setRecordingState] = useState<RecordingState>("idle");
   const [duration, setDuration] = useState(0);
   const [recordedBlob, setRecordedBlob] = useState<Blob | null>(null);
@@ -22,8 +20,7 @@ const Record = () => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const previewVideoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const chunksRef = useRef<Blob[]>([]);
+  const canvasRecorderRef = useRef<CanvasVideoRecorder | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const filterScrollRef = useRef<HTMLDivElement>(null);
 
@@ -33,13 +30,14 @@ const Record = () => {
       stopCamera();
       if (timerRef.current) clearInterval(timerRef.current);
       if (previewUrl) URL.revokeObjectURL(previewUrl);
+      canvasRecorderRef.current?.cleanup();
     };
   }, []);
 
   const startCamera = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "user", width: 1080, height: 1920 },
+        video: { facingMode: "user", width: { ideal: 1080 }, height: { ideal: 1920 } },
         audio: true,
       });
       streamRef.current = stream;
@@ -57,32 +55,30 @@ const Record = () => {
   };
 
   const startRecording = () => {
-    if (!streamRef.current) return;
-    chunksRef.current = [];
-    const mimeType = MediaRecorder.isTypeSupported("video/webm;codecs=vp9")
-      ? "video/webm;codecs=vp9"
-      : "video/webm";
-    const recorder = new MediaRecorder(streamRef.current, { mimeType });
-    recorder.ondataavailable = (e) => {
-      if (e.data.size > 0) chunksRef.current.push(e.data);
-    };
-    recorder.onstop = () => {
-      const blob = new Blob(chunksRef.current, { type: "video/webm" });
-      setRecordedBlob(blob);
-      const url = URL.createObjectURL(blob);
-      setPreviewUrl(url);
-      setRecordingState("preview");
-    };
-    recorder.start(100);
-    mediaRecorderRef.current = recorder;
+    if (!streamRef.current || !selectedFilter) return;
+    
+    const recorder = new CanvasVideoRecorder(streamRef.current, selectedFilter);
+    canvasRecorderRef.current = recorder;
+    recorder.start();
+    
     setRecordingState("recording");
     setDuration(0);
     timerRef.current = setInterval(() => setDuration((d) => d + 1), 1000);
   };
 
-  const stopRecording = () => {
-    mediaRecorderRef.current?.stop();
+  const stopRecording = async () => {
+    if (!canvasRecorderRef.current) return;
+    
     if (timerRef.current) clearInterval(timerRef.current);
+    
+    const blob = await canvasRecorderRef.current.stop();
+    setRecordedBlob(blob);
+    const url = URL.createObjectURL(blob);
+    setPreviewUrl(url);
+    setRecordingState("preview");
+    
+    canvasRecorderRef.current.cleanup();
+    canvasRecorderRef.current = null;
   };
 
   const resetRecording = () => {
@@ -96,6 +92,7 @@ const Record = () => {
   const handleSubmit = async () => {
     if (!recordedBlob || !selectedFilter) return;
     setRecordingState("uploading");
+
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
@@ -103,6 +100,7 @@ const Record = () => {
         navigate("/auth");
         return;
       }
+
       const fileName = `${user.id}/${Date.now()}.webm`;
       const { error: uploadError } = await supabase.storage.from("videos").upload(fileName, recordedBlob);
       if (uploadError) throw uploadError;
@@ -117,6 +115,7 @@ const Record = () => {
         duration_seconds: duration,
         is_submitted: true,
       });
+
       if (insertError) throw insertError;
 
       toast({ title: "Video submitted!", description: "Your declaration has been submitted for review." });
@@ -130,23 +129,25 @@ const Record = () => {
   const formatTime = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 
   return (
-    <div className="fixed inset-0 bg-black flex flex-col">
+    <div className="fixed inset-0 bg-black flex flex-col overflow-hidden font-sans">
       {/* Top bar */}
-      <div className="relative z-20 flex items-center justify-between p-4">
-        <button onClick={() => navigate(-1)} className="text-white">
-          <ArrowLeft className="w-6 h-6" />
+      <div className="absolute top-0 left-0 right-0 z-30 flex items-center justify-between p-6 bg-gradient-to-b from-black/60 to-transparent">
+        <button onClick={() => navigate(-1)} className="text-white hover:opacity-70 transition-opacity">
+          <ArrowLeft className="w-8 h-8" />
         </button>
+        
         {recordingState === "recording" && (
-          <div className="flex items-center gap-2 bg-red-500/80 text-white px-3 py-1 rounded-full text-sm font-medium">
-            <div className="w-2 h-2 rounded-full bg-white animate-pulse" />
+          <div className="flex items-center gap-2 bg-red-500/90 text-white px-4 py-1.5 rounded-full text-sm font-bold shadow-lg">
+            <div className="w-2.5 h-2.5 rounded-full bg-white animate-pulse" />
             {formatTime(duration)}
           </div>
         )}
-        <div className="w-6" />
+        
+        <div className="w-8" />
       </div>
 
-      {/* Camera / Preview */}
-      <div className="flex-1 relative overflow-hidden">
+      {/* Main Viewport */}
+      <div className="flex-1 relative">
         {recordingState !== "preview" ? (
           <video
             ref={videoRef}
@@ -169,109 +170,122 @@ const Record = () => {
           )
         )}
 
-        {/* Filter overlay text */}
+        {/* Real-time Visual Filter Overlay (Only for UI feedback while recording/idle) */}
         {selectedFilter && recordingState !== "preview" && (
-          <div className="absolute inset-0 flex flex-col items-center justify-end pb-40 pointer-events-none">
-            <p className="text-white/80 text-lg font-bold tracking-widest uppercase">
+          <div className="absolute inset-0 flex flex-col items-center justify-end pb-56 pointer-events-none z-10">
+            <p className="text-white/90 text-xl font-bold tracking-[0.2em] uppercase drop-shadow-lg mb-2">
               {getLensConfig(selectedFilter).line1}
             </p>
             <p
-              className="text-3xl font-display font-bold text-center leading-tight"
+              className="text-5xl font-serif font-bold text-center leading-tight drop-shadow-[0_0_15px_rgba(0,0,0,0.5)] px-6"
               style={{ color: getLensConfig(selectedFilter).color }}
             >
-              {getLensConfig(selectedFilter).line2}
+              {getLensConfig(selectedFilter).line2.split('\n').map((line, i) => (
+                <span key={i} className="block">{line}</span>
+              ))}
             </p>
+            {getLensConfig(selectedFilter).tagline && (
+              <p className="text-white/70 text-sm font-bold mt-4 tracking-wider uppercase">
+                {getLensConfig(selectedFilter).tagline}
+              </p>
+            )}
           </div>
         )}
       </div>
 
-      {/* Bottom controls */}
-      <div className="flex flex-col items-center justify-center space-y-6 pb-4">
+      {/* Bottom Controls Area (Snapchat Style) */}
+      <div className="absolute bottom-0 left-0 right-0 z-30 pb-10 pt-20 bg-gradient-to-t from-black/80 to-transparent">
+        
+        {/* Filter Carousel */}
         {recordingState === "idle" && (
-          <div className="w-full flex justify-center">
+          <div className="relative mb-6">
             <div
               ref={filterScrollRef}
-              className="flex overflow-x-auto gap-4 no-scrollbar px-6 items-center justify-center snap-x snap-mandatory"
-              style={{ scrollBehavior: "smooth", scrollSnapType: "x mandatory" }}
+              className="flex overflow-x-auto gap-5 no-scrollbar px-[calc(50%-44px)] items-center snap-x snap-mandatory"
+              style={{ scrollBehavior: "smooth" }}
             >
-              <div className="w-12 flex-shrink-0" />
               {AI_FILTERS.map((filter) => {
                 const cfg = getLensConfig(filter);
-                const isSelected = selectedFilter?.id === filter.id;
+                const isSelected = selectedFilter.id === filter.id;
                 return (
                   <button
                     key={filter.id}
                     onClick={() => setSelectedFilter(filter)}
                     className={`flex-shrink-0 flex flex-col items-center gap-2 transition-all duration-300 snap-center ${
-                      isSelected ? "scale-100" : "scale-75 opacity-40"
+                      isSelected ? "scale-110" : "scale-75 opacity-50"
                     }`}
                   >
                     <div
-                      className={`rounded-full border-4 flex items-center justify-center transition-all ${
-                        isSelected ? "w-20 h-20 border-white shadow-2xl" : "w-14 h-14 border-white/20"
+                      className={`rounded-full border-[3px] flex items-center justify-center transition-all ${
+                        isSelected ? "w-20 h-20 border-white shadow-[0_0_20px_rgba(255,255,255,0.4)]" : "w-16 h-16 border-white/30"
                       }`}
                       style={{
-                        backgroundColor: `${cfg.color}33`,
-                        borderColor: isSelected ? "#fff" : `${cfg.color}44`,
+                        backgroundColor: isSelected ? `${cfg.color}44` : "rgba(255,255,255,0.1)",
+                        borderColor: isSelected ? "#fff" : "rgba(255,255,255,0.3)",
                       }}
                     >
                       <filter.icon
-                        className={isSelected ? "w-10 h-10" : "w-6 h-6"}
-                        style={{ color: cfg.color }}
+                        className={isSelected ? "w-10 h-10" : "w-8 h-8"}
+                        style={{ color: isSelected ? cfg.color : "#fff" }}
                       />
                     </div>
-                    <span
-                      className={`font-bold tracking-wide text-center leading-tight ${
-                        isSelected ? "text-xs" : "text-[8px]"
-                      }`}
-                      style={{ color: isSelected ? "#fff" : "rgba(255,255,255,0.4)" }}
-                    >
+                    <span className={`text-[10px] font-bold tracking-wider uppercase ${isSelected ? "text-white" : "text-white/40"}`}>
                       {filter.shortName}
                     </span>
                   </button>
                 );
               })}
-              <div className="w-12 flex-shrink-0" />
             </div>
           </div>
         )}
 
-        <div className="flex justify-center items-center">
+        {/* Record Button / Actions */}
+        <div className="flex justify-center items-center h-24">
           {recordingState === "idle" && (
             <button
               onClick={startRecording}
-              className="w-24 h-24 rounded-full border-4 border-white p-1 active:scale-95 transition-transform shadow-2xl"
+              className="group relative w-20 h-20 flex items-center justify-center"
             >
-              <div className="w-full h-full rounded-full bg-white" />
+              <div className="absolute inset-0 rounded-full border-[6px] border-white/40 group-active:scale-110 transition-transform" />
+              <div className="w-16 h-16 rounded-full bg-white shadow-xl group-active:scale-90 transition-transform" />
             </button>
           )}
 
           {recordingState === "recording" && (
             <button
               onClick={stopRecording}
-              className="w-24 h-24 rounded-full border-4 border-white p-1 active:scale-95 transition-transform shadow-2xl"
+              className="relative w-24 h-24 flex items-center justify-center"
             >
-              <div className="w-full h-full rounded-full bg-red-500 flex items-center justify-center">
-                <Square className="text-white fill-white w-8 h-8" />
-              </div>
+              <div className="absolute inset-0 rounded-full border-[6px] border-red-500 animate-ping opacity-20" />
+              <div className="absolute inset-0 rounded-full border-[6px] border-red-500" />
+              <div className="w-10 h-10 rounded-lg bg-red-500 shadow-xl" />
             </button>
           )}
 
           {recordingState === "preview" && (
-            <div className="flex gap-4 bg-black/50 backdrop-blur-xl p-4 rounded-3xl border border-white/20">
-              <Button variant="ghost" onClick={resetRecording} className="text-white gap-2">
-                <RotateCcw className="w-5 h-5" /> Retake
-              </Button>
-              <Button onClick={handleSubmit} className="bg-white text-black hover:bg-white/90 gap-2">
-                <Check className="w-5 h-5" /> Submit
-              </Button>
+            <div className="flex items-center gap-8 bg-black/40 backdrop-blur-2xl px-8 py-4 rounded-full border border-white/20 shadow-2xl">
+              <button 
+                onClick={resetRecording} 
+                className="flex flex-col items-center gap-1 text-white hover:text-red-400 transition-colors"
+              >
+                <RotateCcw className="w-7 h-7" />
+                <span className="text-[10px] font-bold uppercase tracking-tighter">Retake</span>
+              </button>
+              <div className="w-px h-10 bg-white/20" />
+              <button 
+                onClick={handleSubmit} 
+                className="flex flex-col items-center gap-1 text-white hover:text-green-400 transition-colors"
+              >
+                <Check className="w-8 h-8" />
+                <span className="text-[10px] font-bold uppercase tracking-tighter">Submit</span>
+              </button>
             </div>
           )}
 
           {recordingState === "uploading" && (
-            <div className="flex items-center gap-3 text-white">
-              <div className="h-8 w-8 border-2 border-white border-t-transparent rounded-full animate-spin" />
-              <span className="font-medium">Uploading…</span>
+            <div className="flex flex-col items-center gap-3">
+              <div className="h-10 w-10 border-[3px] border-white/20 border-t-white rounded-full animate-spin" />
+              <span className="text-xs font-bold text-white tracking-widest uppercase animate-pulse">Uploading...</span>
             </div>
           )}
         </div>
