@@ -10,10 +10,23 @@ interface Message {
   timestamp: Date;
 }
 
+const ELI_KNOWLEDGE_BASE: Record<string, string> = {
+  'record': 'To record a video: 1) Go to Record page 2) Select a filter (AI Ready, AI Savvy, etc.) 3) Press the big Record button 4) Record your message (up to 60 seconds) 5) Review and submit. Your video will be moderated and published!',
+  'filter': 'We have 8 DSC Filters: AI Ready, AI Savvy, AI Accountable, AI Driven, AI Enabler, Building AI-Ready Institutions, Leading with AI, and Shaping AI Future. Each represents a different aspect of AI readiness.',
+  'share': 'After recording, you can share your video to LinkedIn, WhatsApp, Instagram, Facebook, Snapchat, and Twitter/X to inspire your network!',
+  'vote': 'You can vote for videos in the gallery using our voting system. Each vote supports creators and highlights the best AI-ready content!',
+  'event': 'We host seminars, workshops, bootcamps, and masterclasses on AI readiness. Visit the Events page to register, view schedules, and download calendars.',
+  'gallery': 'The gallery showcases approved videos from the community. Browse, vote, and get inspired by others\' AI readiness journeys!',
+  'dashboard': 'Your dashboard shows your submitted videos, voting history, registered events, and profile information.',
+  'help': 'I can help with: recording videos, understanding filters, sharing content, voting, events, gallery, dashboard, and general questions about AI readiness.',
+  'default': 'That\'s a great question! I\'m here to help. Try asking about recording, filters, sharing, voting, events, or the gallery!',
+};
+
 export const EliChatbot = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -21,7 +34,7 @@ export const EliChatbot = () => {
       setMessages([
         {
           id: '1',
-          text: "Hi! I'm Eli, your AI Readiness guide. Ready to declare your AI readiness and join thousands of leaders?",
+          text: "Hi! I'm Eli, your AI Readiness guide. Ready to declare your AI readiness and join thousands of leaders? Ask me anything!",
           sender: 'bot',
           timestamp: new Date(),
         },
@@ -35,6 +48,18 @@ export const EliChatbot = () => {
     }
   }, [messages]);
 
+  const getEliResponse = (userMessage: string): string => {
+    const lowerInput = userMessage.toLowerCase();
+    
+    for (const [key, response] of Object.entries(ELI_KNOWLEDGE_BASE)) {
+      if (key !== 'default' && lowerInput.includes(key)) {
+        return response;
+      }
+    }
+    
+    return ELI_KNOWLEDGE_BASE.default;
+  };
+
   const handleSendMessage = () => {
     if (!inputValue.trim()) return;
 
@@ -47,28 +72,19 @@ export const EliChatbot = () => {
 
     setMessages((prev) => [...prev, userMessage]);
     setInputValue('');
+    setIsLoading(true);
 
-    // Simple bot response logic
+    // Simulate response delay
     setTimeout(() => {
-      let botText = "That's interesting! To get started with your declaration, just click the 'Create Your Video' button on the homepage.";
-      
-      const lowerInput = inputValue.toLowerCase();
-      if (lowerInput.includes('how') || lowerInput.includes('start')) {
-        botText = "To start, choose one of our 8 'DSC Filters' that represents your AI identity, then record a short video sharing your vision.";
-      } else if (lowerInput.includes('filter') || lowerInput.includes('dsc')) {
-        botText = "We have 8 DSC Filters like 'AI Savvy', 'AI Accountable', and 'AI Driven'. Each one comes with a specific prompt to help you shape your message.";
-      } else if (lowerInput.includes('share') || lowerInput.includes('linkedin')) {
-        botText = "After recording, you can instantly share your video to LinkedIn, WhatsApp, or Instagram to inspire your network!";
-      }
-
       const botMessage: Message = {
         id: (Date.now() + 1).toString(),
-        text: botText,
+        text: getEliResponse(inputValue),
         sender: 'bot',
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, botMessage]);
-    }, 1000);
+      setIsLoading(false);
+    }, 800);
   };
 
   return (
@@ -105,6 +121,17 @@ export const EliChatbot = () => {
                 </div>
               </div>
             ))}
+            {isLoading && (
+              <div className="flex justify-start">
+                <div className="bg-background border border-border p-3 rounded-2xl rounded-tl-none">
+                  <div className="flex gap-2">
+                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" />
+                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce delay-100" />
+                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce delay-200" />
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Input */}
@@ -116,8 +143,9 @@ export const EliChatbot = () => {
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
+              disabled={isLoading}
             />
-            <Button size="icon" className="rounded-full h-9 w-9" onClick={handleSendMessage}>
+            <Button size="icon" className="rounded-full h-9 w-9" onClick={handleSendMessage} disabled={isLoading || !inputValue.trim()}>
               <Send size={16} />
             </Button>
           </div>
