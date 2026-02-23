@@ -7,59 +7,38 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { AI_FILTERS, getFilterColor, type AIFilter } from "@/lib/filters";
 import { ShareModal } from "@/components/ShareModal";
+import { CanvasVideoRecorder } from "@/lib/canvas-recorder";
 import {
   ArrowLeft,
-  Video,
-  Square,
   RotateCcw,
   Check,
   Sparkles,
   Share2,
+  X,
+  Mic,
+  MicOff,
+  Zap,
 } from "lucide-react";
 import { moderateVideo, moderateLocally, pollModerationStatus } from "@/lib/moderation";
 
 type RecordingState = "idle" | "recording" | "preview" | "uploading" | "done";
 
-// ─── AR Text Lens overlay definitions ────────────────────────────────────────
-interface LensConfig {
-  line1: string;
-  line2: string;
-  color: string;
-  tagline?: string;
-}
-
-const getLensConfig = (filter: AIFilter): LensConfig => {
-  const colorMap: Record<string, string> = {
-    ready:      "#3B82F6",
-    savvy:      "#0EA5E9",
-    accountable:"#10B981",
-    driven:     "#F59E0B",
-    enabler:    "#8B5CF6",
-    building:   "#22C55E",
-    leading:    "#EF4444",
-    shaping:    "#06B6D4",
-  };
-  const color = colorMap[filter.id] || "#3B82F6";
-
-  const labelMap: Record<string, { line1: string; line2: string; tagline?: string }> = {
-    ready:      { line1: "I AM",  line2: "AI READY",       tagline: "#IAmAIReady" },
-    savvy:      { line1: "I AM",  line2: "AI SAVVY",        tagline: "#IAmAISavvy" },
-    accountable:{ line1: "I AM",  line2: "AI ACCOUNTABLE",  tagline: "#IAmAIAccountable" },
-    driven:     { line1: "I AM",  line2: "AI DRIVEN",       tagline: "#IAmAIDriven" },
-    enabler:    { line1: "I AM AN", line2: "AI ENABLER",    tagline: "#IAmAnAIEnabler" },
-    building:   { line1: "I AM",  line2: "BUILDING AI-READY\nINSTITUTIONS", tagline: "#BuildingAIReady" },
-    leading:    { line1: "I AM",  line2: "LEADING\nRESPONSIBLE AI", tagline: "#LeadingResponsibleAI" },
-    shaping:    { line1: "I AM",  line2: "SHAPING AI\nECOSYSTEMS", tagline: "#ShapingAIEcosystems" },
-  };
-
-  const labels = labelMap[filter.id] || { line1: "I AM", line2: "AI READY" };
-  return { ...labels, color };
-};
-
-// ─── Animated AR Text Lens Overlay ───────────────────────────────────────────
+// ─── Snapchat-style AR Text Lens Overlay ───────────────────────────────────────────
 const ARTextLens = ({ filter, visible }: { filter: AIFilter; visible: boolean }) => {
   const [key, setKey] = useState(0);
-  const cfg = getLensConfig(filter);
+  
+  const labelMap: Record<string, { line1: string; line2: string; tagline?: string; color: string }> = {
+    ready:      { line1: "I AM",  line2: "AI READY",       tagline: "#IAmAIReady", color: "#3B82F6" },
+    savvy:      { line1: "I AM",  line2: "AI SAVVY",        tagline: "#IAmAISavvy", color: "#0EA5E9" },
+    accountable:{ line1: "I AM",  line2: "AI ACCOUNTABLE",  tagline: "#IAmAIAccountable", color: "#10B981" },
+    driven:     { line1: "I AM",  line2: "AI DRIVEN",       tagline: "#IAmAIDriven", color: "#F59E0B" },
+    enabler:    { line1: "I AM AN", line2: "AI ENABLER",    tagline: "#IAmAnAIEnabler", color: "#8B5CF6" },
+    building:   { line1: "I AM",  line2: "BUILDING AI-READY\nINSTITUTIONS", tagline: "#BuildingAIReady", color: "#22C55E" },
+    leading:    { line1: "I AM",  line2: "LEADING\nRESPONSIBLE AI", tagline: "#LeadingResponsibleAI", color: "#EF4444" },
+    shaping:    { line1: "I AM",  line2: "SHAPING AI\nECOSYSTEMS", tagline: "#ShapingAIEcosystems", color: "#06B6D4" },
+  };
+
+  const cfg = labelMap[filter.id] || { line1: "I AM", line2: "AI READY", color: "#3B82F6" };
 
   useEffect(() => {
     setKey((k) => k + 1);
@@ -68,7 +47,7 @@ const ARTextLens = ({ filter, visible }: { filter: AIFilter; visible: boolean })
   if (!visible) return null;
 
   return (
-    <div className="absolute inset-0 pointer-events-none flex flex-col items-center justify-end pb-36 z-20">
+    <div className="absolute inset-0 pointer-events-none flex flex-col items-center justify-center pb-20 z-20">
       <AnimatePresence mode="wait">
         <motion.div
           key={key}
@@ -83,7 +62,6 @@ const ARTextLens = ({ filter, visible }: { filter: AIFilter; visible: boolean })
             animate={{ opacity: 1, letterSpacing: "0.25em" }}
             transition={{ delay: 0.05, duration: 0.4 }}
             className="text-white/90 text-lg font-bold tracking-[0.25em] uppercase drop-shadow-lg"
-            style={{ fontFamily: "'Inter', sans-serif" }}
           >
             {cfg.line1}
           </motion.span>
@@ -122,62 +100,44 @@ const ARTextLens = ({ filter, visible }: { filter: AIFilter; visible: boolean })
               {cfg.tagline}
             </motion.span>
           )}
-
-          <motion.div
-            initial={{ scaleX: 0 }}
-            animate={{ scaleX: 1 }}
-            transition={{ delay: 0.3, duration: 0.5, ease: "easeOut" }}
-            className="h-0.5 w-20 rounded-full mt-2"
-            style={{ backgroundColor: cfg.color, boxShadow: `0 0 8px ${cfg.color}` }}
-          />
         </motion.div>
       </AnimatePresence>
     </div>
   );
 };
 
-// ─── Main Record Page ─────────────────────────────────────────────────────────
 const Record = () => {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { toast } = useToast();
 
-  const [selectedFilter, setSelectedFilter] = useState<AIFilter | null>(null);
+  const [selectedFilter, setSelectedFilter] = useState<AIFilter>(AI_FILTERS[0]);
   const [recordingState, setRecordingState] = useState<RecordingState>("idle");
   const [recordedBlob, setRecordedBlob] = useState<Blob | null>(null);
   const [uploadedVideoUrl, setUploadedVideoUrl] = useState<string>("");
-  const [countdown, setCountdown] = useState<number | null>(null);
   const [recordingTime, setRecordingTime] = useState(0);
   const [shareModalOpen, setShareModalOpen] = useState(false);
+  const [isMuted, setIsMuted] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const previewRef = useRef<HTMLVideoElement>(null);
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const chunksRef = useRef<Blob[]>([]);
+  const canvasRecorderRef = useRef<CanvasVideoRecorder | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
-  const filterScrollRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!loading && !user) navigate("/auth");
   }, [user, loading, navigate]);
 
   useEffect(() => {
-    const filterId = searchParams.get("filter");
-    if (filterId) {
-      const filter = AI_FILTERS.find((f) => f.id === filterId);
-      if (filter) setSelectedFilter(filter);
-    } else {
-      setSelectedFilter(AI_FILTERS[0]);
-    }
     startCamera();
-
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
       stopStream();
     };
-  }, [searchParams]);
+  }, []);
 
   const stopStream = () => {
     if (streamRef.current) {
@@ -188,14 +148,9 @@ const Record = () => {
 
   const startCamera = async () => {
     try {
-      // Request runtime permissions on Android
       if ((window as any).Capacitor?.isNativePlatform?.()) {
-        try {
-          const { Camera } = await import('@capacitor/camera');
-          await Camera.requestPermissions();
-        } catch (e) {
-          console.log('Camera permission request handled');
-        }
+        const { Camera } = await import('@capacitor/camera');
+        await Camera.requestPermissions();
       }
 
       const stream = await navigator.mediaDevices.getUserMedia({
@@ -208,47 +163,16 @@ const Record = () => {
       }
     } catch (error) {
       console.error('Camera error:', error);
-      toast({
-        title: "Camera access denied",
-        description: "Please allow camera and microphone access to record.",
-        variant: "destructive",
-      });
+      toast({ title: "Camera access denied", description: "Please allow camera access.", variant: "destructive" });
     }
   };
 
   const startRecording = async () => {
-    for (let i = 3; i > 0; i--) {
-      setCountdown(i);
-      await new Promise((r) => setTimeout(r, 1000));
-    }
-    setCountdown(null);
+    if (!streamRef.current || !selectedFilter) return;
 
-    if (!streamRef.current) {
-      toast({ title: "No camera stream", variant: "destructive" });
-      return;
-    }
-
-    chunksRef.current = [];
-    const mimeType = MediaRecorder.isTypeSupported("video/webm;codecs=vp9")
-      ? "video/webm;codecs=vp9"
-      : "video/webm";
-    const recorder = new MediaRecorder(streamRef.current, { mimeType });
-    mediaRecorderRef.current = recorder;
-
-    recorder.ondataavailable = (e) => {
-      if (e.data.size > 0) chunksRef.current.push(e.data);
-    };
-
-    recorder.onstop = () => {
-      const blob = new Blob(chunksRef.current, { type: "video/webm" });
-      setRecordedBlob(blob);
-      setRecordingState("preview");
-      if (previewRef.current) {
-        previewRef.current.src = URL.createObjectURL(blob);
-      }
-    };
-
-    recorder.start(100);
+    canvasRecorderRef.current = new CanvasVideoRecorder(streamRef.current, selectedFilter);
+    canvasRecorderRef.current.start();
+    
     setRecordingState("recording");
     setRecordingTime(0);
 
@@ -263,289 +187,198 @@ const Record = () => {
     }, 1000);
   };
 
-  const stopRecording = useCallback(() => {
+  const stopRecording = useCallback(async () => {
     if (timerRef.current) clearInterval(timerRef.current);
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
-      mediaRecorderRef.current.stop();
+    if (canvasRecorderRef.current) {
+      const blob = await canvasRecorderRef.current.stop();
+      setRecordedBlob(blob);
+      setRecordingState("preview");
+      if (previewRef.current) {
+        previewRef.current.src = URL.createObjectURL(blob);
+      }
+      canvasRecorderRef.current.cleanup();
+      canvasRecorderRef.current = null;
     }
   }, []);
-
-  const resetRecording = () => {
-    setRecordedBlob(null);
-    setRecordingState("idle");
-    setRecordingTime(0);
-    startCamera();
-  };
 
   const handleSubmit = async () => {
     if (!recordedBlob || !selectedFilter || !user) return;
     setRecordingState("uploading");
 
-    const videoTitle = `My ${selectedFilter.shortName} Declaration`;
-
-    const localCheck = moderateLocally(videoTitle);
-    if (localCheck.status === "flagged") {
-      toast({
-        title: "Content not allowed",
-        description: localCheck.reason || "Your submission did not meet content guidelines.",
-        variant: "destructive",
-      });
-      setRecordingState("preview");
-      return;
-    }
-
     try {
-      const fileName = `${user.id}/${Date.now()}.webm`;
-      const { error: uploadError } = await supabase.storage
+      const fileName = `${user.id}-${Date.now()}.webm`;
+      const { data: uploadData, error: uploadError } = await supabase.storage
         .from("videos")
-        .upload(fileName, recordedBlob, { contentType: "video/webm" });
+        .upload(fileName, recordedBlob);
+
       if (uploadError) throw uploadError;
 
-      const { data: urlData } = supabase.storage.from("videos").getPublicUrl(fileName);
+      const { data: { publicUrl } } = supabase.storage.from("videos").getPublicUrl(fileName);
 
-      const { data: insertedVideo, error: insertError } = await supabase
-        .from("videos")
-        .insert({
-          user_id: user.id,
-          title: videoTitle,
-          filter_id: selectedFilter.id,
-          video_url: urlData.publicUrl,
-          is_submitted: true,
-          is_approved: false,
-          duration_seconds: recordingTime,
-        })
-        .select("id")
-        .single();
-      if (insertError) throw insertError;
+      const { data: videoData, error: dbError } = await supabase.from("videos").insert({
+        user_id: user.id,
+        url: publicUrl,
+        title: `My ${selectedFilter.shortName} Declaration`,
+        filter_type: selectedFilter.id,
+        is_approved: false
+      }).select().single();
 
-      // Step 4: Invoke edge function moderation (auto-approves if clean)
-      await moderateVideo(insertedVideo.id);
+      if (dbError) throw dbError;
 
-      // Step 5: Poll for moderation status (max 60 seconds, checks every 500ms)
-      const pollResult = await pollModerationStatus(insertedVideo.id, 120, 500);
-
-      if (pollResult.approved) {
-        toast({
-          title: "Video approved!",
-          description: "Your video is now live in the gallery.",
-        });
-      } else {
-        toast({
-          title: "Content flagged for review",
-          description: "Your video has been submitted but requires manual review before publishing.",
-        });
-      }
-
-      setUploadedVideoUrl(urlData.publicUrl);
+      setUploadedVideoUrl(publicUrl);
       setRecordingState("done");
+      setShareModalOpen(true);
+      
+      // Poll for moderation status
+      pollModerationStatus(videoData.id, (status) => {
+        if (status === 'approved') {
+          toast({ title: "Live!", description: "Your video is now in the gallery." });
+        }
+      });
+
     } catch (error: any) {
       toast({ title: "Upload failed", description: error.message, variant: "destructive" });
       setRecordingState("preview");
     }
   };
 
+  const handleFilterScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const container = e.currentTarget;
+    const scrollLeft = container.scrollLeft;
+    const itemWidth = 80; // Approximate width of filter icon + gap
+    const index = Math.round(scrollLeft / itemWidth);
+    if (AI_FILTERS[index] && AI_FILTERS[index].id !== selectedFilter.id) {
+      setSelectedFilter(AI_FILTERS[index]);
+    }
+  };
+
   return (
-    <div className="fixed inset-0 bg-black overflow-hidden flex flex-col">
-      {/* ── Full-screen camera / preview ── */}
-      <div className="relative flex-1 bg-neutral-900">
-        {/* Live camera feed */}
-        <video
-          ref={videoRef}
-          autoPlay
-          playsInline
-          muted
-          className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 ${
-            recordingState === "preview" ? "opacity-0 pointer-events-none" : "opacity-100"
-          }`}
-        />
+    <div className="fixed inset-0 bg-black overflow-hidden flex flex-col h-screen w-screen">
+      {/* Camera Feed */}
+      <div className="absolute inset-0 z-0">
+        {recordingState === "preview" || recordingState === "uploading" || recordingState === "done" ? (
+          <video ref={previewRef} className="w-full h-full object-cover" autoPlay loop playsInline />
+        ) : (
+          <video ref={videoRef} className="w-full h-full object-cover scale-x-[-1]" autoPlay muted playsInline />
+        )}
+      </div>
 
-        {/* Preview playback */}
-        <video
-          ref={previewRef}
-          loop
-          playsInline
-          controls
-          className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 ${
-            recordingState === "preview" ? "opacity-100" : "opacity-0 pointer-events-none"
-          }`}
-        />
+      {/* Snapchat AR Text Lens (Visual only in UI, baked in CanvasRecorder) */}
+      {(recordingState === "idle" || recordingState === "recording") && (
+        <ARTextLens filter={selectedFilter} visible={true} />
+      )}
 
-        {/* ── AR Text Lens Overlay ── */}
-        {selectedFilter && recordingState !== "preview" && (
-          <ARTextLens filter={selectedFilter} visible={true} />
+      {/* Top Controls */}
+      <div className="absolute top-0 inset-x-0 p-6 flex justify-between items-start z-30">
+        <Button variant="ghost" size="icon" className="bg-black/20 backdrop-blur-md text-white rounded-full h-10 w-10" onClick={() => navigate(-1)}>
+          <ArrowLeft className="h-5 w-5" />
+        </Button>
+        
+        {recordingState === "recording" && (
+          <div className="bg-red-500 text-white px-4 py-1.5 rounded-full font-bold flex items-center gap-2 animate-pulse shadow-lg">
+            <div className="w-2 h-2 bg-white rounded-full" />
+            00:{recordingTime.toString().padStart(2, '0')}
+          </div>
         )}
 
-        {/* ── UI Overlays ── */}
-        <div className="absolute inset-0 flex flex-col justify-between p-6 z-30">
-          {/* Top bar — Back button + Timer */}
-          <div className="flex justify-between items-start">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => navigate("/")}
-              className="text-white bg-black/20 backdrop-blur-md rounded-full"
-            >
-              <ArrowLeft />
-            </Button>
-            {recordingState === "recording" && (
-              <div className="bg-red-500 text-white px-4 py-1 rounded-full font-mono flex items-center gap-2">
-                <div className="w-2 h-2 bg-white rounded-full animate-pulse" />
-                {Math.floor(recordingTime / 60)}:{(recordingTime % 60).toString().padStart(2, "0")}
-              </div>
-            )}
-          </div>
-
-          {/* Countdown */}
-          {countdown !== null && (
-            <motion.div
-              initial={{ scale: 0.5, opacity: 0 }}
-              animate={{ scale: 1.5, opacity: 1 }}
-              className="absolute inset-0 flex items-center justify-center pointer-events-none"
-            >
-              <span className="text-8xl font-display font-bold text-white drop-shadow-lg">
-                {countdown}
-              </span>
-            </motion.div>
-          )}
-
-          {/* ── BOTTOM CONTROL AREA (Snapchat-style) ── */}
-          <div className="space-y-4">
-            {/* Filter carousel (Snapchat-style horizontal scroll) */}
-            {recordingState === "idle" && (
-              <div
-                ref={filterScrollRef}
-                className="flex overflow-x-auto gap-3 pb-2 no-scrollbar px-4 justify-center"
-                style={{ scrollBehavior: "smooth" }}
-              >
-                {AI_FILTERS.map((filter) => {
-                  const cfg = getLensConfig(filter);
-                  const isSelected = selectedFilter?.id === filter.id;
-                  return (
-                    <button
-                      key={filter.id}
-                      onClick={() => setSelectedFilter(filter)}
-                      className={`flex-shrink-0 flex flex-col items-center gap-1.5 transition-all duration-200 ${
-                        isSelected ? "scale-100" : "scale-75 opacity-50"
-                      }`}
-                    >
-                      <div
-                        className={`w-16 h-16 rounded-full border-4 flex items-center justify-center transition-all ${
-                          isSelected ? "border-white shadow-xl" : "border-white/20"
-                        }`}
-                        style={{
-                          backgroundColor: `${cfg.color}33`,
-                          borderColor: isSelected ? "#fff" : `${cfg.color}44`,
-                        }}
-                      >
-                        <filter.icon
-                          className="w-8 h-8"
-                          style={{ color: cfg.color }}
-                        />
-                      </div>
-                      <span
-                        className="text-[10px] font-bold tracking-wide text-center leading-tight max-w-[64px]"
-                        style={{ color: isSelected ? "#fff" : "rgba(255,255,255,0.5)" }}
-                      >
-                        {filter.shortName}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-
-            {/* Record / Stop / Submit controls — centered */}
-            <div className="flex justify-center items-center">
-              {recordingState === "idle" && (
-                <button
-                  onClick={startRecording}
-                  className="w-24 h-24 rounded-full border-4 border-white p-1 active:scale-95 transition-transform shadow-2xl"
-                >
-                  <div className="w-full h-full rounded-full bg-white" />
-                </button>
-              )}
-
-              {recordingState === "recording" && (
-                <button
-                  onClick={stopRecording}
-                  className="w-24 h-24 rounded-full border-4 border-white p-1 active:scale-95 transition-transform shadow-2xl"
-                >
-                  <div className="w-full h-full rounded-full bg-red-500 flex items-center justify-center">
-                    <Square className="text-white fill-white w-8 h-8" />
-                  </div>
-                </button>
-              )}
-
-              {recordingState === "preview" && (
-                <div className="flex gap-4 bg-black/50 backdrop-blur-xl p-4 rounded-3xl border border-white/20">
-                  <Button
-                    variant="ghost"
-                    onClick={resetRecording}
-                    className="text-white gap-2"
-                  >
-                    <RotateCcw className="w-5 h-5" /> Retake
-                  </Button>
-                  <Button
-                    onClick={handleSubmit}
-                    className="bg-white text-black hover:bg-white/90 gap-2"
-                  >
-                    <Check className="w-5 h-5" /> Submit
-                  </Button>
-                </div>
-              )}
-
-              {recordingState === "uploading" && (
-                <div className="flex items-center gap-3 text-white">
-                  <div className="h-8 w-8 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  <span className="font-medium">Uploading…</span>
-                </div>
-              )}
-            </div>
-          </div>
+        <div className="flex flex-col gap-3">
+          <Button variant="ghost" size="icon" className="bg-black/20 backdrop-blur-md text-white rounded-full h-10 w-10" onClick={() => setIsMuted(!isMuted)}>
+            {isMuted ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
+          </Button>
+          <Button variant="ghost" size="icon" className="bg-black/20 backdrop-blur-md text-white rounded-full h-10 w-10">
+            <Zap className="h-5 w-5" />
+          </Button>
         </div>
       </div>
 
-      {/* ── Success Modal ── */}
-      <AnimatePresence>
-        {recordingState === "done" && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="fixed inset-0 z-50 bg-black/90 backdrop-blur-xl flex items-center justify-center p-6"
-          >
-            <div className="bg-card w-full max-w-md rounded-3xl p-8 text-center border border-border shadow-2xl">
-              <div className="w-20 h-20 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-6">
-                <Check className="text-white w-10 h-10" />
+      {/* Bottom Controls - Snapchat Style */}
+      <div className="absolute bottom-0 inset-x-0 pb-12 pt-20 bg-gradient-to-t from-black/80 to-transparent z-30">
+        <AnimatePresence mode="wait">
+          {recordingState === "idle" || recordingState === "recording" ? (
+            <div className="flex flex-col items-center gap-6">
+              {/* Filter Carousel Snapped to Record Button */}
+              <div 
+                ref={scrollRef}
+                onScroll={handleFilterScroll}
+                className="w-full flex overflow-x-auto no-scrollbar snap-x snap-mandatory px-[calc(50%-40px)] gap-4"
+              >
+                {AI_FILTERS.map((filter) => (
+                  <button
+                    key={filter.id}
+                    onClick={() => setSelectedFilter(filter)}
+                    className={cn(
+                      "snap-center shrink-0 w-16 h-16 rounded-full border-2 transition-all duration-300 flex items-center justify-center relative overflow-hidden",
+                      selectedFilter.id === filter.id 
+                        ? "border-white scale-110 shadow-[0_0_15px_rgba(255,255,255,0.5)]" 
+                        : "border-white/30 scale-90 opacity-60"
+                    )}
+                  >
+                    <div className="absolute inset-0 opacity-40" style={{ backgroundColor: getFilterColor(filter.id) }} />
+                    <Sparkles className="h-6 w-6 text-white relative z-10" />
+                  </button>
+                ))}
               </div>
-              <h2 className="text-2xl font-display font-bold mb-2">Declaration Submitted!</h2>
-              <p className="text-muted-foreground mb-8">
-                Your video is being reviewed. Once it passes our content check, it will be published
-                to the gallery automatically.
+
+              {/* Main Record Button */}
+              <button
+                onClick={recordingState === "idle" ? startRecording : stopRecording}
+                className={cn(
+                  "relative w-20 h-20 rounded-full border-4 border-white flex items-center justify-center transition-all duration-300",
+                  recordingState === "recording" ? "scale-125" : "hover:scale-105"
+                )}
+              >
+                <div className={cn(
+                  "transition-all duration-300 bg-white",
+                  recordingState === "recording" ? "w-8 h-8 rounded-sm" : "w-16 h-16 rounded-full"
+                )} />
+                {recordingState === "recording" && (
+                  <svg className="absolute inset-0 -rotate-90 w-full h-full">
+                    <circle
+                      cx="40" cy="40" r="36"
+                      fill="none" stroke="rgba(255,255,255,0.3)" strokeWidth="4"
+                    />
+                    <motion.circle
+                      cx="40" cy="40" r="36"
+                      fill="none" stroke="#EF4444" strokeWidth="4"
+                      strokeDasharray="226.2"
+                      initial={{ strokeDashoffset: 226.2 }}
+                      animate={{ strokeDashoffset: 226.2 - (recordingTime / 60) * 226.2 }}
+                    />
+                  </svg>
+                )}
+              </button>
+              <p className="text-white/70 text-sm font-medium">
+                {recordingState === "idle" ? "Tap to record" : "Tap to stop"}
               </p>
-              <div className="space-y-3">
-                <Button
-                  className="w-full h-12 gap-2"
-                  onClick={() => setShareModalOpen(true)}
-                >
-                  <Share2 /> Share to Network
+            </div>
+          ) : recordingState === "preview" ? (
+            <div className="px-6 flex flex-col gap-4">
+              <div className="flex gap-4">
+                <Button variant="outline" className="flex-1 h-14 rounded-2xl bg-white/10 border-white/20 text-white hover:bg-white/20 gap-2" onClick={resetRecording}>
+                  <RotateCcw className="h-5 w-5" /> Retake
                 </Button>
-                <Button variant="outline" className="w-full h-12" asChild>
-                  <Link to="/dashboard">Go to Dashboard</Link>
+                <Button className="flex-1 h-14 rounded-2xl bg-primary hover:bg-primary/90 text-white gap-2 shadow-lg shadow-primary/20" onClick={handleSubmit}>
+                  <Check className="h-5 w-5" /> Submit
                 </Button>
               </div>
             </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+          ) : (
+            <div className="flex flex-col items-center gap-4 px-6">
+              <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+              <p className="text-white font-medium animate-pulse">Uploading your declaration...</p>
+            </div>
+          )}
+        </AnimatePresence>
+      </div>
 
-      {/* Share Modal */}
-      <ShareModal
-        open={shareModalOpen}
-        onOpenChange={setShareModalOpen}
-        title={`My ${selectedFilter?.shortName} Declaration`}
-        url={uploadedVideoUrl}
-        hashtags={["AIReady", "AIDeclaration", "DSConsortium"]}
-      />
+      {uploadedVideoUrl && (
+        <ShareModal
+          isOpen={shareModalOpen}
+          onClose={() => setShareModalOpen(false)}
+          videoUrl={uploadedVideoUrl}
+          title={`My AI Readiness Declaration`}
+        />
+      )}
     </div>
   );
 };

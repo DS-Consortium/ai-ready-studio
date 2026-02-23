@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { AI_FILTERS, getFilterColor, getFilterById } from "@/lib/filters";
 import { SocialShare } from "@/components/SocialShare";
 import QRCodeGenerator from "@/components/QRCodeGenerator";
+import { submitVote, getUserBalance, purchaseCredits } from "@/lib/voting";
 import {
   ArrowLeft,
   Heart,
@@ -16,6 +17,10 @@ import {
   TrendingUp,
   Clock,
   Filter,
+  Trophy,
+  Coins,
+  X,
+  ChevronRight
 } from "lucide-react";
 
 interface GalleryVideo {
@@ -27,7 +32,7 @@ interface GalleryVideo {
   filter_id: string | null;
   created_at: string;
   user_id: string;
-  votes: { id: string }[];
+  total_votes?: number;
 }
 
 const Gallery = () => {
@@ -37,287 +42,131 @@ const Gallery = () => {
   const [loading, setLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<"popular" | "recent">("popular");
+  const [balance, setBalance] = useState(0);
+  const [votingVideo, setVotingVideo] = useState<GalleryVideo | null>(null);
+  const [showBuyCredits, setShowBuyCredits] = useState(false);
 
   useEffect(() => {
     fetchVideos();
-  }, [activeFilter, sortBy]);
+    if (user) refreshBalance();
+  }, [activeFilter, sortBy, user]);
+
+  const refreshBalance = async () => {
+    const b = await getUserBalance();
+    setBalance(b);
+  };
 
   const fetchVideos = async () => {
     setLoading(true);
+    try {
+      let query = supabase
+        .from("videos")
+        .select(`
+          id, title, video_url, thumbnail_url, views_count, filter_id, created_at, user_id,
+          votes:votes(amount)
+        `)
+        .eq("is_approved", true);
 
-    let query = supabase
-      .from("videos")
-      .select(
-        `
-        id,
-        title,
-        video_url,
-        thumbnail_url,
-        views_count,
-        filter_id,
-        created_at,
-        user_id,
-        votes (id)
-      `
-      )
-      .eq("is_submitted", true)
-      .eq("is_approved", true);
+      if (activeFilter) query = query.eq("filter_id", activeFilter);
+      
+      const { data, error } = await query;
+      if (error) throw error;
 
-    if (activeFilter) {
-      query = query.eq("filter_id", activeFilter);
+      const formatted = (data as any[]).map(v => ({
+        ...v,
+        total_votes: v.votes?.reduce((sum: number, vote: any) => sum + (vote.amount || 0), 0) || 0
+      }));
+
+      if (sortBy === "recent") {
+        formatted.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+      } else {
+        formatted.sort((a, b) => (b.total_votes || 0) - (a.total_votes || 0));
+      }
+
+      setVideos(formatted);
+    } catch (err) {
+      console.error("Error fetching videos:", err);
+    } finally {
+      setLoading(false);
     }
-
-    if (sortBy === "recent") {
-      query = query.order("created_at", { ascending: false });
-    } else {
-      query = query.order("views_count", { ascending: false });
-    }
-
-    const { data, error } = await query.limit(50);
-
-    if (error) {
-      console.error("Error fetching videos:", error);
-    } else {
-      setVideos((data as GalleryVideo[]) || []);
-    }
-
-    setLoading(false);
   };
 
-  const handleVote = async (videoId: string) => {
-    if (!user) {
-      toast({
-        title: "Sign in required",
-        description: "Please sign in to vote for videos.",
-        variant: "destructive",
-      });
-      return;
+  const handleVote = async (points: number) => {
+    if (!user || !votingVideo) return;
+    
+    try {
+      await submitVote(votingVideo.id, points);
+      toast({ title: "Vote Cast!", description: `You used ${points} credits to support this video.` });
+      setVotingVideo(null);
+      refreshBalance();
+      fetchVideos();
+    } catch (err: any) {
+      toast({ title: "Voting Failed", description: err.message, variant: "destructive" });
+      if (err.message.includes("Insufficient")) setShowBuyCredits(true);
     }
-
-    const video = videos.find((v) => v.id === videoId);
-    const hasVoted = video?.votes.some(
-      (v) => videos.find((vid) => vid.id === videoId)?.user_id === user.id
-    );
-
-    if (hasVoted) {
-      // Remove vote
-      await supabase
-        .from("votes")
-        .delete()
-        .eq("video_id", videoId)
-        .eq("user_id", user.id);
-    } else {
-      // Add vote
-      await supabase.from("votes").insert({
-        video_id: videoId,
-        user_id: user.id,
-      });
-    }
-
-    // Refresh videos
-    fetchVideos();
   };
 
-  const userVotedFor = (video: GalleryVideo) => {
-    if (!user) return false;
-    // Check if current user has voted - we need to check votes table
-    return false; // Simplified - would need separate query
+  const handleBuyCredits = async (amount: number, points: number) => {
+    const success = await purchaseCredits(amount, points);
+    if (success) {
+      toast({ title: "Credits Added!", description: `Successfully added ${points} voting credits.` });
+      refreshBalance();
+      setShowBuyCredits(false);
+    }
   };
 
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="sticky top-0 z-50 border-b border-border bg-background/80 backdrop-blur-lg">
+      <header className="sticky top-0 z-40 border-b border-border bg-background/80 backdrop-blur-lg">
         <div className="container flex items-center justify-between h-16">
           <Button variant="ghost" asChild className="gap-2">
             <Link to="/dashboard">
-              <ArrowLeft className="h-4 w-4" />
-              Back
+              <ArrowLeft className="h-4 w-4" /> Back
             </Link>
           </Button>
-          <h1 className="font-display font-bold">Community Gallery</h1>
-          <div className="w-20" />
+          <div className="flex items-center gap-2 bg-primary/10 px-3 py-1.5 rounded-full border border-primary/20">
+            <Coins className="h-4 w-4 text-primary" />
+            <span className="text-sm font-bold">{balance} Credits</span>
+          </div>
+          <Button variant="outline" size="sm" className="rounded-full" onClick={() => setShowBuyCredits(true)}>Top Up</Button>
         </div>
       </header>
 
       <main className="container py-8">
-        {/* Filters */}
         <div className="flex flex-wrap items-center gap-3 mb-8">
-          {/* Sort buttons */}
           <div className="flex items-center gap-1 p-1 rounded-xl bg-muted">
-            <button
-              onClick={() => setSortBy("popular")}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                sortBy === "popular"
-                  ? "bg-background shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              <TrendingUp className="h-4 w-4" />
-              Popular
-            </button>
-            <button
-              onClick={() => setSortBy("recent")}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                sortBy === "recent"
-                  ? "bg-background shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              <Clock className="h-4 w-4" />
-              Recent
-            </button>
+            <button onClick={() => setSortBy("popular")} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${sortBy === "popular" ? "bg-background shadow-sm" : "text-muted-foreground"}`}><Trophy className="h-4 w-4" /> Popular</button>
+            <button onClick={() => setSortBy("recent")} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${sortBy === "recent" ? "bg-background shadow-sm" : "text-muted-foreground"}`}><Clock className="h-4 w-4" /> Recent</button>
           </div>
-
           <div className="h-6 w-px bg-border" />
-
-          {/* Filter tags */}
-          <button
-            onClick={() => setActiveFilter(null)}
-            className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
-              activeFilter === null
-                ? "bg-primary text-primary-foreground"
-                : "bg-muted text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            All
-          </button>
-          {AI_FILTERS.map((filter) => (
-            <button
-              key={filter.id}
-              onClick={() => setActiveFilter(filter.id)}
-              className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
-                activeFilter === filter.id
-                  ? "text-white"
-                  : "bg-muted text-muted-foreground hover:text-foreground"
-              }`}
-              style={
-                activeFilter === filter.id
-                  ? { backgroundColor: getFilterColor(filter.id) }
-                  : undefined
-              }
-            >
-              {filter.shortName}
-            </button>
+          <button onClick={() => setActiveFilter(null)} className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all ${activeFilter === null ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>All</button>
+          {AI_FILTERS.map((f) => (
+            <button key={f.id} onClick={() => setActiveFilter(f.id)} className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all ${activeFilter === f.id ? "text-white" : "bg-muted text-muted-foreground"}`} style={activeFilter === f.id ? { backgroundColor: getFilterColor(f.id) } : undefined}>{f.shortName}</button>
           ))}
         </div>
 
-        {/* Videos grid */}
         {loading ? (
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {[...Array(6)].map((_, i) => (
-              <div
-                key={i}
-                className="aspect-video rounded-2xl bg-muted animate-pulse"
-              />
-            ))}
-          </div>
-        ) : videos.length === 0 ? (
-          <div className="text-center py-16">
-            <Filter className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-            <h3 className="font-semibold text-lg mb-2">No videos yet</h3>
-            <p className="text-muted-foreground mb-4">
-              Be the first to share your AI declaration!
-            </p>
-            <Button asChild>
-              <Link to="/record">Create Video</Link>
-            </Button>
-          </div>
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">{[...Array(6)].map((_, i) => <div key={i} className="aspect-[9/16] rounded-2xl bg-muted animate-pulse" />)}</div>
         ) : (
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {videos.map((video, index) => {
-              const filter = video.filter_id
-                ? getFilterById(video.filter_id)
-                : null;
-
+              const filter = video.filter_id ? getFilterById(video.filter_id) : null;
               return (
-                <motion.div
-                  key={video.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.05 }}
-                  className="group rounded-2xl border border-border bg-card overflow-hidden transition-all hover:border-primary/50 hover:shadow-lg"
-                >
-                  {/* Video thumbnail */}
-                  <div className="aspect-video bg-muted relative">
-                    {video.thumbnail_url ? (
-                      <img
-                        src={video.thumbnail_url}
-                        alt={video.title}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <video
-                        src={video.video_url}
-                        className="w-full h-full object-cover"
-                        muted
-                        preload="metadata"
-                      />
-                    )}
-
-                    {/* Play overlay */}
-                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                      <Button
-                        size="icon"
-                        variant="secondary"
-                        className="rounded-full h-14 w-14"
-                      >
-                        <Play className="h-6 w-6" />
-                      </Button>
-                    </div>
-
-                    {/* Filter badge */}
-                    {filter && (
-                      <div
-                        className="absolute top-3 left-3 px-3 py-1 rounded-full text-white text-xs font-medium flex items-center gap-1.5"
-                        style={{ backgroundColor: getFilterColor(filter.id) }}
-                      >
-                        <filter.icon className="h-3 w-3" />
-                        {filter.shortName}
+                <motion.div key={video.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.05 }} className="group rounded-3xl border border-border bg-card overflow-hidden transition-all hover:border-primary/50 hover:shadow-xl">
+                  <div className="aspect-[9/16] bg-black relative">
+                    <video src={video.video_url} className="w-full h-full object-cover" muted playsInline onMouseOver={e => e.currentTarget.play()} onMouseOut={e => {e.currentTarget.pause(); e.currentTarget.currentTime = 0;}} />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
+                    {filter && <div className="absolute top-4 left-4 px-3 py-1 rounded-full text-white text-xs font-bold flex items-center gap-1.5" style={{ backgroundColor: getFilterColor(filter.id) }}><filter.icon className="h-3 w-3" /> {filter.shortName}</div>}
+                    <div className="absolute bottom-4 left-4 right-4 flex items-end justify-between">
+                      <div className="text-white">
+                        <h3 className="font-bold text-lg leading-tight">{video.title}</h3>
+                        <div className="flex items-center gap-3 mt-1 text-white/80 text-sm">
+                          <span className="flex items-center gap-1"><Heart className="h-4 w-4 fill-primary text-primary" /> {video.total_votes}</span>
+                          <span className="flex items-center gap-1"><Eye className="h-4 w-4" /> {video.views_count}</span>
+                        </div>
                       </div>
-                    )}
-
-                    {/* Views */}
-                    <div className="absolute bottom-3 right-3 px-2 py-1 rounded-md bg-black/60 text-white text-xs flex items-center gap-1">
-                      <Eye className="h-3 w-3" />
-                      {video.views_count}
-                    </div>
-                  </div>
-
-                  {/* Info */}
-                  <div className="p-4">
-                    <h3 className="font-semibold truncate">{video.title}</h3>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      AI Ready Creator
-                    </p>
-
-                    {/* Actions */}
-                    <div className="flex items-center justify-between mt-4">
-                      <button
-                        onClick={() => handleVote(video.id)}
-                        className="flex items-center gap-2 text-sm text-muted-foreground hover:text-pink-500 transition-colors"
-                      >
-                        <Heart
-                          className={`h-5 w-5 ${
-                            userVotedFor(video)
-                              ? "fill-pink-500 text-pink-500"
-                              : ""
-                          }`}
-                        />
-                        <span>{video.votes.length}</span>
-                      </button>
-                      <div className="flex items-center gap-2">
-                        <QRCodeGenerator
-                          url={`${window.location.origin}/gallery?video=${video.id}`}
-                          title={video.title}
-                          size={180}
-                        />
-                        <SocialShare
-                          videoUrl={video.video_url}
-                          videoTitle={video.title}
-                          filterName={filter?.name}
-                        />
-                      </div>
+                      <Button onClick={() => setVotingVideo(video)} className="rounded-full h-12 w-12 p-0 bg-primary hover:bg-primary/90 shadow-lg shadow-primary/40"><Heart className="h-6 w-6 fill-white" /></Button>
                     </div>
                   </div>
                 </motion.div>
@@ -326,6 +175,56 @@ const Gallery = () => {
           </div>
         )}
       </main>
+
+      {/* Voting Modal */}
+      <AnimatePresence>
+        {votingVideo && (
+          <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center p-4 bg-black/60 backdrop-blur-sm">
+            <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} className="bg-card w-full max-w-md rounded-t-[2.5rem] sm:rounded-[2.5rem] p-8 shadow-2xl border border-border">
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-2xl font-bold">Support Creator</h3>
+                <Button variant="ghost" size="icon" onClick={() => setVotingVideo(null)}><X /></Button>
+              </div>
+              <p className="text-muted-foreground mb-8 text-center">How many voting credits would you like to cast for <strong>{votingVideo.title}</strong>?</p>
+              <div className="grid grid-cols-3 gap-4 mb-8">
+                {[1, 5, 10, 20, 50, 100].map(pts => (
+                  <button key={pts} onClick={() => handleVote(pts)} className="flex flex-col items-center gap-2 p-4 rounded-2xl border-2 border-border hover:border-primary hover:bg-primary/5 transition-all group">
+                    <span className="text-xl font-black group-hover:text-primary">{pts}</span>
+                    <span className="text-[10px] uppercase tracking-widest text-muted-foreground">Credits</span>
+                  </button>
+                ))}
+              </div>
+              <div className="bg-muted/50 p-4 rounded-2xl flex justify-between items-center">
+                <div className="flex items-center gap-2"><Coins className="h-5 w-5 text-primary" /><span className="font-bold">{balance} Credits Left</span></div>
+                <Button variant="link" onClick={() => setShowBuyCredits(true)} className="p-0 h-auto">Top Up <ChevronRight className="h-4 w-4" /></Button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+
+        {showBuyCredits && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-card w-full max-w-sm rounded-[2.5rem] p-8 shadow-2xl border border-border text-center">
+              <div className="w-20 h-20 bg-primary/10 rounded-3xl flex items-center justify-center mx-auto mb-6"><Coins className="h-10 w-10 text-primary" /></div>
+              <h3 className="text-2xl font-bold mb-2">Get Voting Credits</h3>
+              <p className="text-muted-foreground mb-8">Support your favorite creators and help them climb the leaderboard!</p>
+              <div className="space-y-3">
+                {[
+                  { label: "Starter Pack", pts: 100, price: 5 },
+                  { label: "Supporter Pack", pts: 500, price: 20 },
+                  { label: "Whale Pack", pts: 2000, price: 50 }
+                ].map(pack => (
+                  <Button key={pack.pts} onClick={() => handleBuyCredits(pack.price, pack.pts)} variant="outline" className="w-full h-16 rounded-2xl flex justify-between px-6 border-2 hover:border-primary">
+                    <div className="text-left"><div className="font-bold">{pack.pts} Credits</div><div className="text-xs text-muted-foreground">{pack.label}</div></div>
+                    <div className="text-primary font-black">${pack.price}</div>
+                  </Button>
+                ))}
+              </div>
+              <Button variant="ghost" className="mt-6 w-full" onClick={() => setShowBuyCredits(false)}>Maybe Later</Button>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { Mail, Lock, User, Sparkles, ArrowLeft, Chrome, ExternalLink } from "lucide-react";
+import { Mail, Lock, User, Sparkles, ArrowLeft, Chrome, ExternalLink, Linkedin } from "lucide-react";
 
 const Auth = () => {
   const [isSignUp, setIsSignUp] = useState(false);
@@ -16,39 +16,94 @@ const Auth = () => {
   const [displayName, setDisplayName] = useState("");
   const [loading, setLoading] = useState(false);
   const [showInAppAuth, setShowInAppAuth] = useState(false);
+  const [linkedinLoading, setLinkedinLoading] = useState(false);
   
   const { user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const { toast } = useToast();
+
   const MAIN_WEBSITE_URL = "https://legroupeds.com/auth";
+  const LINKEDIN_CLIENT_ID = import.meta.env.VITE_LINKEDIN_CLIENT_ID;
+  const REDIRECT_URI = `${window.location.origin}/auth`;
 
   useEffect(() => {
     if (user) {
-      navigate("/dashboard");
+      const from = (location.state as any)?.from?.pathname || "/dashboard";
+      navigate(from, { replace: true });
     }
-  }, [user, navigate]);
+  }, [user, navigate, location]);
+
+  // Handle LinkedIn Callback logic from DS Consortium
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get('code');
+    const state = params.get('state');
+    const error = params.get('error');
+
+    if (error) {
+      toast({
+        title: 'LinkedIn Error',
+        description: params.get('error_description') || 'Authorization failed.',
+        variant: 'destructive',
+      });
+      navigate('/auth', { replace: true });
+      return;
+    }
+
+    if (code) {
+      const storedState = localStorage.getItem('linkedin_state');
+      if (state !== storedState) {
+        toast({ title: 'Security Warning', description: 'Invalid state parameter.', variant: 'destructive' });
+        navigate('/auth', { replace: true });
+        return;
+      }
+      localStorage.removeItem('linkedin_state');
+
+      const completeLinkedInAuth = async () => {
+        try {
+          setLinkedinLoading(true);
+          const { data, error: invokeError } = await supabase.functions.invoke("linkedin-auth", {
+            body: { code, redirect_uri: REDIRECT_URI },
+          });
+
+          if (invokeError) throw new Error(invokeError.message || "Function call failed");
+          if (!data?.success) throw new Error(data?.error || "Authentication failed");
+
+          if (data?.action_link) {
+            window.location.href = data.action_link;
+            return;
+          }
+
+          toast({ title: "Success", description: "Signed in with LinkedIn." });
+          navigate('/dashboard', { replace: true });
+        } catch (err: any) {
+          toast({ title: "Login Failed", description: err.message, variant: 'destructive' });
+          navigate('/auth', { replace: true });
+        } finally {
+          setLinkedinLoading(false);
+        }
+      };
+      completeLinkedInAuth();
+      window.history.replaceState({}, '', '/auth');
+    }
+  }, [navigate, toast, REDIRECT_URI]);
 
   const handleEmailAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-
     try {
       if (isSignUp) {
         const { error } = await supabase.auth.signUp({
           email,
           password,
-          options: {
-            data: {
-              full_name: displayName || email.split("@")[0],
-            },
-          },
+          options: { data: { full_name: displayName || email.split("@")[0] } },
         });
         if (error) throw error;
-        toast({ title: "Welcome!", description: "Account created successfully." });
+        toast({ title: "Welcome!", description: "Check your email to confirm your account." });
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
-        toast({ title: "Welcome back!", description: "Signed in successfully." });
       }
     } catch (error: any) {
       toast({ title: "Auth Error", description: error.message, variant: "destructive" });
@@ -71,6 +126,24 @@ const Auth = () => {
     }
   };
 
+  const handleLinkedInLogin = () => {
+    if (!LINKEDIN_CLIENT_ID) {
+      toast({ title: "Configuration Error", description: "LinkedIn login is not configured.", variant: "destructive" });
+      return;
+    }
+    setLinkedinLoading(true);
+    const state = crypto.randomUUID();
+    localStorage.setItem('linkedin_state', state);
+    const params = new URLSearchParams({
+      response_type: 'code',
+      client_id: LINKEDIN_CLIENT_ID,
+      redirect_uri: REDIRECT_URI,
+      scope: 'openid profile email w_member_social',
+      state,
+    });
+    window.location.href = `https://www.linkedin.com/oauth/v2/authorization?${params.toString()}`;
+  };
+
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <div className="fixed inset-0 bg-pattern pointer-events-none" />
@@ -91,7 +164,7 @@ const Auth = () => {
               <>
                 <h1 className="font-display text-2xl font-bold mb-4">Join the Movement</h1>
                 <p className="text-muted-foreground mb-8">
-                  We recommend signing in through our main platform to sync your professional profile.
+                  Sign in through our main platform to sync your professional profile and access all features.
                 </p>
                 <Button size="lg" className="w-full h-14 text-lg gap-3 rounded-2xl mb-4" onClick={() => window.location.href = MAIN_WEBSITE_URL}>
                   Sign In on DS Consortium <ExternalLink className="h-5 w-5" />
@@ -106,6 +179,9 @@ const Auth = () => {
                 <div className="space-y-3 mb-6 mt-6">
                   <Button variant="outline" className="w-full h-12 gap-3" onClick={handleGoogleAuth} disabled={loading}>
                     <Chrome className="h-5 w-5" /> Continue with Google
+                  </Button>
+                  <Button variant="outline" className="w-full h-12 gap-3" onClick={handleLinkedInLogin} disabled={linkedinLoading}>
+                    <Linkedin className="h-5 w-5" /> Continue with LinkedIn
                   </Button>
                 </div>
                 <div className="relative my-6">
@@ -133,7 +209,7 @@ const Auth = () => {
                   {isSignUp ? "Have an account?" : "No account?"}{" "}
                   <button onClick={() => setIsSignUp(!isSignUp)} className="text-primary font-medium">{isSignUp ? "Sign In" : "Sign Up"}</button>
                 </p>
-                <button onClick={() => setShowInAppAuth(false)} className="mt-4 text-xs text-muted-foreground hover:underline">Back to main sign in</button>
+                <button onClick={() => setShowInAppAuth(false)} className="mt-4 text-xs text-muted-foreground hover:underline">Back to main options</button>
               </>
             )}
           </div>
