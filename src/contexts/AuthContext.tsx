@@ -1,12 +1,15 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
   signOut: () => Promise<void>;
+  signInWithGoogle: () => Promise<void>;
+  signInWithLinkedIn: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -17,7 +20,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Set up auth state listener FIRST
+    // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
         setSession(session);
@@ -26,7 +29,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
     );
 
-    // THEN check for existing session
+    // Check for existing session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
@@ -37,11 +40,33 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    const { error } = await supabase.auth.signOut();
+    if (error) toast.error(error.message);
+    else toast.success("Signed out successfully");
+  };
+
+  const signInWithGoogle = async () => {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: window.location.origin,
+      },
+    });
+    if (error) toast.error(error.message);
+  };
+
+  const signInWithLinkedIn = async () => {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "linkedin_oidc",
+      options: {
+        redirectTo: window.location.origin,
+      },
+    });
+    if (error) toast.error(error.message);
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, signOut }}>
+    <AuthContext.Provider value={{ user, session, loading, signOut, signInWithGoogle, signInWithLinkedIn }}>
       {children}
     </AuthContext.Provider>
   );
