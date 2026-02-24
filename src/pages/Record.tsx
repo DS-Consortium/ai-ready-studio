@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { RotateCcw, Check, ArrowLeft, Zap, Sparkles, Camera, Video, Share2 } from "lucide-react";
 import { AI_FILTERS, AIFilter } from "@/lib/filters";
 import { getLensConfig, CanvasVideoRecorder } from "@/lib/canvas-recorder";
+import { awardCredits, CREDIT_COSTS } from "@/lib/credits";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { motion, AnimatePresence } from "framer-motion";
@@ -120,7 +121,25 @@ const Record = () => {
 
       if (insertError) throw insertError;
 
-      toast({ title: "Video submitted!", description: "Your declaration has been submitted for review." });
+      // Award credits for completing declaration
+      try {
+        await awardCredits(
+          user.id,
+          CREDIT_COSTS.DECLARATION_COMPLETION,
+          'Completed declaration video'
+        );
+        toast({ 
+          title: "Video submitted!", 
+          description: `Your declaration has been submitted for review. You earned ${CREDIT_COSTS.DECLARATION_COMPLETION} credits!` 
+        });
+      } catch (creditErr) {
+        console.warn('Could not award credits:', creditErr);
+        toast({ 
+          title: "Video submitted!", 
+          description: "Your declaration has been submitted for review." 
+        });
+      }
+
       navigate("/dashboard");
     } catch (err: any) {
       toast({ title: "Upload failed", description: err.message, variant: "destructive" });
