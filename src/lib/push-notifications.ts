@@ -74,10 +74,15 @@ async function registerForPushNotifications(): Promise<void> {
  */
 async function saveDeviceToken(token: any): Promise<void> {
   try {
-    await fetch('/api/notifications/register-device', {
+    const apiUrl = typeof window !== 'undefined' && (import.meta as any).env.VITE_API_URL 
+      ? (import.meta as any).env.VITE_API_URL 
+      : `${window.location.protocol}//${window.location.hostname}:3000`;
+      
+    await fetch(`${apiUrl}/api/notifications/register-device`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
+        userId: (await Capacitor.Plugins.Auth?.getCurrentUser?.())?.id,
         platform: Capacitor.getPlatform(),
         token: token.ios?.token || token.android?.token,
       }),

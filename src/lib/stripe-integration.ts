@@ -1,96 +1,72 @@
 /**
  * Stripe Payment Integration for Voting Credits
- * 
- * This module handles credit purchases via Stripe.
- * Should be integrated with a backend endpoint that creates Stripe checkout sessions.
+ * Frontend integration with backend API
  */
 
 export interface StripeCheckoutConfig {
-  packId: string;
+  userId: string;
   credits: number;
   price: number;
-  customerEmail?: string;
-  userId?: string;
-}
-
-export interface StripeCheckoutResponse {
-  sessionId: string;
-  url?: string;
+  customerEmail: string;
 }
 
 /**
- * Initialize Stripe checkout for credit purchase
- * Backend should handle the actual Stripe API calls
+ * Get API URL from environment or defaults to localhost
+ */
+function getApiUrl(): string {
+  if (typeof window !== 'undefined' && import.meta.env.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL;
+  }
+  // Default to backend at same domain on port 3000
+  return `${window.location.protocol}//${window.location.hostname}:3000`;
+}
+
+/**
+ * Initiate Stripe checkout for credit purchase
  */
 export const initiateStripeCheckout = async (
   config: StripeCheckoutConfig
-): Promise<StripeCheckoutResponse> => {
+): Promise<{ url: string; sessionId: string }> => {
   try {
-    const response = await fetch('/api/stripe/create-checkout-session', {
+    const apiUrl = getApiUrl();
+    const response = await fetch(`${apiUrl}/api/stripe/create-checkout-session`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        packId: config.packId,
-        credits: config.credits,
-        price: config.price,
-        customerEmail: config.customerEmail,
-        userId: config.userId,
-      }),
+      body: JSON.stringify(config),
     });
 
     if (!response.ok) {
-      throw new Error('Failed to create checkout session');
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to create checkout session');
     }
 
     const data = await response.json();
-    return data;
-  } catch (error) {
-    console.error('Stripe checkout error:', error);
-    throw error;
-  }
-};
-
-/**
- * Handle successful payment webhook from Stripe
- * This would be called by backend when Stripe sends a checkout.session.completed event
- */
-export const handleStripePaymentSuccess = async (
-  userId: string,
-  sessionId: string,
-  creditsAwarded: number
-) => {
-  try {
-    const response = await fetch('/api/stripe/handle-payment-success', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        userId,
-        sessionId,
-        creditsAwarded,
-      }),
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to process payment');
+    
+    if (!data.url) {
+      throw new Error('No checkout URL returned from server');
     }
 
-    return await response.json();
+    return {
+      url: data.url,
+      sessionId: data.sessionId,
+    };
   } catch (error) {
-    console.error('Payment processing error:', error);
+    console.error('❌ Stripe checkout error:', error);
     throw error;
   }
 };
 
 /**
- * Retrieve payment history for a user
+ * Verify payment completion
  */
-export const getUserPaymentHistory = async (userId: string) => {
+export const verifyPaymentCompletion = async (
+  sessionId: string
+): Promise<{ status: string; success: boolean }> => {
   try {
-    const response = await fetch(`/api/stripe/payment-history/${userId}`, {
+    const apiUrl = getApiUrl();
+    const response = await fetch(`${apiUrl}/api/stripe/session/${sessionId}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -98,36 +74,36 @@ export const getUserPaymentHistory = async (userId: string) => {
     });
 
     if (!response.ok) {
-      throw new Error('Failed to fetch payment history');
+      throw new Error('Failed to verify payment');
     }
 
-    return await response.json();
+    const data = await response.json();
+    return {
+      status: data.status || 'unknown',
+      success: data.status === 'paid',
+    };
   } catch (error) {
-    console.error('Payment history error:', error);
+    console.error('❌ Payment verification error:', error);
     throw error;
   }
 };
 
 /**
- * Cancel a pending/incomplete payment
+ * Format price for Stripe (convert to cents)
  */
-export const cancelPayment = async (sessionId: string) => {
-  try {
-    const response = await fetch('/api/stripe/cancel-session', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ sessionId }),
-    });
+export const formatPrice = (price: number): number => {
+  return Math.round(price * 100);
+};
 
-    if (!response.ok) {
-      throw new Error('Failed to cancel payment');
-    }
-
-    return await response.json();
-  } catch (error) {
-    console.error('Cancel payment error:', error);
-    throw error;
-  }
+/**
+ * Get payment status from URL params
+ */
+export const getPaymentStatus = (): { status?: string; sessionId?: string } => {
+  if (typeof window === 'undefined') return {};
+  
+  const params = new URLSearchParams(window.location.search);
+  return {
+    status: params.get('payment_status') || undefined,
+    sessionId: params.get('session_id') || undefined,
+  };
 };
