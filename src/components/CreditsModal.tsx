@@ -83,7 +83,7 @@ export const CreditsModal = ({ isOpen, onClose }: { isOpen: boolean, onClose: ()
 
         <div className="flex justify-center pb-2">
           <p className="text-[10px] text-muted-foreground flex items-center gap-1">
-            <CreditCard className="h-3 w-3" /> Secure checkout powered by LeGroupeDS
+            <CreditCard className="h-3 w-3" /> Secure checkout powered by DS Consortium
           </p>
         </div>
       </DialogContent>

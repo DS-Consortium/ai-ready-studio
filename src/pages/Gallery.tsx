@@ -135,7 +135,7 @@ const Gallery = () => {
               Back
             </Link>
           </Button>
-          <h1 className="font-display font-bold">Community Gallery</h1>
+          <h1 className="font-display font-bold">Global Gallery</h1>
           <div className="w-20" />
         </div>
       </header>

@@ -9,13 +9,14 @@ export interface UserCredits {
 
 export const CREDIT_COSTS = {
   VOTE: 1, // 1 credit per standard vote
-  POWER_VOTE: 10, // 10 credits for a power vote
+  POWER_VOTE: 50, // 50 credits for a power vote (allows 50 votes for $1.99)
+  DECLARATION_COMPLETION: 100, // 100 credits for completing own declaration
 };
 
 export const PURCHASE_PACKS = [
-  { id: 'pack_small', name: 'Starter Pack', credits: 50, price: 4.99 },
-  { id: 'pack_medium', name: 'Leader Pack', credits: 150, price: 12.99 },
-  { id: 'pack_large', name: 'Visionary Pack', credits: 500, price: 39.99 },
+  { id: 'pack_small', name: 'Starter Pack', credits: 100, price: 1.99 },
+  { id: 'pack_medium', name: 'Leader Pack', credits: 500, price: 9.99 },
+  { id: 'pack_large', name: 'Visionary Pack', credits: 1000, price: 19.99 },
 ];
 
 export const getUserCredits = async (userId: string): Promise<UserCredits | null> => {
@@ -34,7 +35,7 @@ export const getUserCredits = async (userId: string): Promise<UserCredits | null
     // Initialize credits for new user
     const { data: newData, error: initError } = await supabase
       .from('user_credits')
-      .insert({ user_id: userId, balance: 10, total_earned: 10 }) // Give 10 starter credits
+      .insert({ user_id: userId, balance: 100, total_earned: 100 }) // Give 100 starter credits
       .select()
       .single();
     
@@ -71,6 +72,51 @@ export const spendCredits = async (userId: string, amount: number, reason: strin
     user_id: userId,
     amount: -amount,
     type: 'spend',
+    description: reason
+  });
+
+  return true;
+};
+
+export const awardCredits = async (userId: string, amount: number, reason: string) => {
+  const { data: credits, error: fetchError } = await supabase
+    .from('user_credits')
+    .select('*')
+    .eq('user_id', userId)
+    .single();
+
+  if (fetchError && fetchError.code !== 'PGRST116') {
+    throw new Error('Failed to fetch credits');
+  }
+
+  if (!credits) {
+    // Initialize new user credits
+    const { error: initError } = await supabase
+      .from('user_credits')
+      .insert({ 
+        user_id: userId, 
+        balance: amount, 
+        total_earned: amount 
+      });
+    if (initError) throw initError;
+  } else {
+    // Update existing credits
+    const { error: updateError } = await supabase
+      .from('user_credits')
+      .update({ 
+        balance: credits.balance + amount,
+        total_earned: credits.total_earned + amount
+      })
+      .eq('user_id', userId);
+
+    if (updateError) throw updateError;
+  }
+
+  // Log transaction
+  await supabase.from('credit_transactions').insert({
+    user_id: userId,
+    amount: amount,
+    type: 'earn',
     description: reason
   });
 
