@@ -27,7 +27,7 @@ const Auth = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { toast } = useToast();
-  const MAIN_WEBSITE_URL = "https://legroupeds.com/auth";
+  const MAIN_WEBSITE_URL = "https://dsconsortium.com/auth";
 
   // Aligned with DS Consortium redirect logic
   const redirectPath = (location.state as any)?.from?.pathname || "/dashboard";
