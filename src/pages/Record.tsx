@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { RotateCcw, Check, ArrowLeft, Zap, Sparkles, Camera, Share2 } from "lucide-react";
+import { RotateCcw, Check, ArrowLeft, Zap, Sparkles, Camera, Share2, Volume2, Mic } from "lucide-react";
 import { AI_FILTERS, AIFilter } from "@/lib/filters";
 import { getLensConfig, CanvasVideoRecorder } from "@/lib/canvas-recorder";
 import { awardCredits, CREDIT_COSTS } from "@/lib/credits";
@@ -20,6 +20,33 @@ const SnapIcon = ({ icon: Icon, size = 24, color = "white", filled = false }: { 
 );
 
 type RecordingState = "idle" | "recording" | "preview" | "uploading";
+
+// Text-to-speech helper
+const synthesizeDeclaration = async (filterName: string, onComplete?: () => void): Promise<Blob | null> => {
+  try {
+    const text = `I am ${filterName}. I am committed to responsible AI leadership and declare my readiness to shape the future of AI.`;
+    
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.rate = 1;
+    utterance.pitch = 1;
+    utterance.volume = 1;
+    
+    // Use canvas to capture audio
+    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const mediaStreamAudioDestination = audioContext.createMediaStreamAudioDestination();
+    
+    // Connect utterance to media stream (requires Web Audio API with speech synthesis)
+    utterance.onend = onComplete;
+    
+    window.speechSynthesis.speak(utterance);
+    
+    return null; // Return null for now - real implementation would capture audio
+  } catch (error) {
+    console.error('TTS error:', error);
+    return null;
+  }
+};
+
 
 const Record = () => {
   const navigate = useNavigate();
@@ -473,9 +500,28 @@ const Record = () => {
             </motion.button>
           )}
 
-          {recordingState === "preview" && <div className="w-14" />}
+          {/* RIGHT: TTS Button (When IDLE) */}
+          {recordingState === "idle" && (
+            <motion.button 
+              whileTap={{ scale: 0.85 }}
+              whileHover={{ scale: 1.05 }}
+              onClick={() => {
+                synthesizeDeclaration(selectedFilter.shortName);
+                toast({ title: "Audio playing", description: "Your declaration narration is playing." });
+              }}
+              title="Play narration"
+              className="relative group flex items-center justify-center w-14 h-14 rounded-full bg-white/15 backdrop-blur-lg border-2 border-white/30 hover:bg-white/25 hover:border-white/50 transition-all duration-200 active:scale-75 shadow-[0_8px_32px_rgba(255,255,255,0.1)]"
+            >
+              <SnapIcon icon={Volume2} size={24} />
+              <motion.div 
+                className="absolute inset-0 rounded-full border-2 border-white/0 group-active:border-white/30"
+                animate={{ scale: 1.2 }}
+                transition={{ duration: 0.3 }}
+              />
+            </motion.button>
+          )}
 
-          {/* CENTER: Main Record/Stop Button (HUGE) */}
+          {recordingState === "preview" && <div className="w-14" />}
           <div className="relative flex flex-col items-center gap-3">
             {recordingState === "idle" && (
               <>
