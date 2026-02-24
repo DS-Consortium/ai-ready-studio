@@ -25,7 +25,7 @@ export const GallerySection = () => {
             className="flex items-center gap-2 mb-4"
           >
             <div className="w-12 h-1 bg-primary rounded-full" />
-            <span className="text-sm font-black uppercase tracking-[0.3em] text-primary">Global Gallery</span>
+            <span className="text-sm font-black uppercase tracking-[0.3em] text-primary">Community Gallery</span>
           </motion.div>
           <motion.h2
             initial={{ opacity: 0, y: 20 }}
@@ -42,7 +42,7 @@ export const GallerySection = () => {
             transition={{ delay: 0.1 }}
             className="text-lg text-muted-foreground font-medium"
           >
-            Watch, vote, and get inspired by leaders from around the world. Use Power Votes to boost your favorites!
+            Watch, vote, and get inspired by leaders from around the world. All declarations from our web and mobile platforms are merged here.
           </motion.p>
         </div>
 

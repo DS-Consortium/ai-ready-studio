@@ -1,356 +1,214 @@
-import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Header } from "@/components/Header";
+import { Footer } from "@/components/Footer";
 import { motion } from "framer-motion";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/contexts/AuthContext";
+import { Calendar, MapPin, ExternalLink, ArrowRight, Sparkles, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useToast } from "@/hooks/use-toast";
-import { getFilterById, getFilterColor } from "@/lib/filters";
-import {
-  ArrowLeft,
-  Calendar,
-  MapPin,
-  Users,
-  Clock,
-  CheckCircle,
-  ExternalLink,
-} from "lucide-react";
-import { format } from "date-fns";
 
-interface Event {
-  id: string;
-  title: string;
-  description: string | null;
-  event_date: string;
-  location: string | null;
-  event_type: string;
-  filter_id: string | null;
-  max_attendees: number | null;
-  registration_deadline: string | null;
-}
-
-interface Registration {
-  event_id: string;
-  status: string;
-}
+const upcomingEvents = [
+  {
+    id: 1,
+    title: "The AI Readiness Roadmap: Shaping Future Institutions",
+    date: "Tuesday, February 18, 2025",
+    time: "10:00 AM - 12:00 PM GMT+4",
+    location: "Online / Dubai",
+    lumaUrl: "https://lu.ma/3f35f29k",
+    type: "Seminar",
+  },
+  {
+    id: 2,
+    title: "Data Governance Masterclass: The Foundation of AI",
+    date: "March 17 - 19, 2025",
+    time: "9:00 AM - 4:00 PM",
+    location: "Nairobi, Kenya",
+    lumaUrl: "https://lu.ma/dg-masterclass",
+    type: "Masterclass",
+  },
+  {
+    id: 3,
+    title: "AI Ethics & Governance: Building Trust in AI",
+    date: "Wednesday, March 25, 2025",
+    time: "10:00 AM - 1:00 PM",
+    location: "Riyadh, Saudi Arabia",
+    lumaUrl: "https://lu.ma/ai-ethics-gov",
+    type: "Seminar",
+  },
+  {
+    id: 4,
+    title: "Applied AI Bootcamp: From Strategy to Execution",
+    date: "April 14 - June 20, 2025",
+    time: "Ongoing (Hybrid)",
+    location: "Accra, Ghana",
+    lumaUrl: "https://lu.ma/ai-bootcamp-2025",
+    type: "Bootcamp",
+  },
+  {
+    id: 5,
+    title: "Cybersecurity for AI Ecosystems",
+    date: "Thursday, April 24, 2025",
+    time: "2:00 PM - 5:00 PM",
+    location: "Lagos, Nigeria",
+    lumaUrl: "https://lu.ma/ai-security-2025",
+    type: "Workshop",
+  },
+  {
+    id: 6,
+    title: "Digital Strategy & Transformation Workshop",
+    date: "May 12 - 14, 2025",
+    time: "9:00 AM - 5:00 PM",
+    location: "New York, USA",
+    lumaUrl: "https://lu.ma/digital-strategy-2025",
+    type: "Workshop",
+  },
+  {
+    id: 7,
+    title: "Operational Change & AI Readiness",
+    date: "June 10, 2025",
+    time: "10:00 AM - 12:00 PM",
+    location: "London, UK",
+    lumaUrl: "https://lu.ma/op-change-ai",
+    type: "Seminar",
+  },
+  {
+    id: 8,
+    title: "Culture, Change & Talent Seminar",
+    date: "July 15, 2025",
+    time: "10:00 AM - 1:00 PM",
+    location: "Singapore",
+    lumaUrl: "https://lu.ma/culture-change-talent",
+    type: "Seminar",
+  },
+  {
+    id: 9,
+    title: "Storytelling with Data Masterclass",
+    date: "July 22 - 24, 2025",
+    time: "9:00 AM - 4:00 PM",
+    location: "Nairobi, Kenya",
+    lumaUrl: "https://lu.ma/data-storytelling-2025",
+    type: "Masterclass",
+  },
+  {
+    id: 10,
+    title: "Cloud-Ready Culture Workshop",
+    date: "September 9, 2025",
+    time: "10:00 AM - 4:00 PM",
+    location: "Dubai, UAE",
+    lumaUrl: "https://lu.ma/cloud-ready-culture",
+    type: "Workshop",
+  },
+  {
+    id: 11,
+    title: "Cross-Market AI Partnerships",
+    date: "September 10, 2025",
+    time: "2:00 PM - 5:00 PM",
+    location: "Accra, Ghana",
+    lumaUrl: "https://lu.ma/ai-partnerships",
+    type: "Seminar",
+  },
+  {
+    id: 12,
+    title: "Pre-UNGA Strategy Review",
+    date: "September 17, 2025",
+    time: "9:00 AM - 12:00 PM",
+    location: "New York, USA",
+    lumaUrl: "https://lu.ma/unga-strategy-2025",
+    type: "Seminar",
+  },
+  {
+    id: 13,
+    title: "Leadership in the Digital Era",
+    date: "November 11, 2025",
+    time: "10:00 AM - 1:00 PM",
+    location: "Riyadh, Saudi Arabia",
+    lumaUrl: "https://lu.ma/digital-leadership-2025",
+    type: "Seminar",
+  },
+  {
+    id: 14,
+    title: "AI Readiness 2025 Closing Session",
+    date: "November 18, 2025",
+    time: "2:00 PM - 5:00 PM",
+    location: "Online / Global",
+    lumaUrl: "https://lu.ma/ai-ready-closing",
+    type: "Seminar",
+  },
+];
 
 const Events = () => {
-  const { user } = useAuth();
-  const { toast } = useToast();
-  const [events, setEvents] = useState<Event[]>([]);
-  const [registrations, setRegistrations] = useState<Registration[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [registering, setRegistering] = useState<string | null>(null);
-
-  useEffect(() => {
-    fetchEvents();
-    if (user) {
-      fetchRegistrations();
-    }
-  }, [user]);
-
-  const fetchEvents = async () => {
-    const { data, error } = await supabase
-      .from("events")
-      .select("*")
-      .eq("is_active", true)
-      .order("event_date", { ascending: true });
-
-    if (!error && data) {
-      setEvents(data);
-    }
-    setLoading(false);
-  };
-
-  const fetchRegistrations = async () => {
-    if (!user) return;
-
-    const { data } = await supabase
-      .from("event_registrations")
-      .select("event_id, status")
-      .eq("user_id", user.id);
-
-    if (data) {
-      setRegistrations(data);
-    }
-  };
-
-  const isRegistered = (eventId: string) => {
-    return registrations.some((r) => r.event_id === eventId);
-  };
-
-  const handleRegister = async (eventId: string) => {
-    // Lead to main website for paid registrations
-    window.open("https://legroupeds.com/events", "_blank");
-    
-    // Optionally still record the intent in Supabase
-    if (user) {
-      try {
-        await supabase.from("event_registrations").upsert({
-          event_id: eventId,
-          user_id: user.id,
-          status: "interested",
-        });
-        fetchRegistrations();
-      } catch (e) {
-        console.error("Failed to record interest:", e);
-      }
-    }
-  };
-
-  const getEventTypeLabel = (type: string) => {
-    const types: Record<string, string> = {
-      workshop: "Workshop",
-      seminar: "Seminar",
-      masterclass: "Masterclass",
-      bootcamp: "Bootcamp",
-      webinar: "Webinar",
-    };
-    return types[type] || type;
-  };
-
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="sticky top-0 z-50 border-b border-border bg-background/80 backdrop-blur-lg">
-        <div className="container flex items-center justify-between h-16">
-          <Button variant="ghost" asChild className="gap-2">
-            <Link to="/dashboard">
-              <ArrowLeft className="h-4 w-4" />
-              Back
-            </Link>
-          </Button>
-          <h1 className="font-display font-bold">Events & Workshops</h1>
-          <div className="w-20" />
-        </div>
-      </header>
-
-      <main className="container py-8">
-        {/* Hero */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="text-center mb-12"
-        >
-          <span className="inline-block rounded-full bg-accent px-4 py-1.5 text-sm font-medium text-accent-foreground mb-4">
-            2026 Roadmap
-          </span>
-          <h2 className="font-display text-3xl md:text-4xl font-bold mb-3">
-            Upcoming Events
-          </h2>
-          <p className="text-muted-foreground max-w-2xl mx-auto">
-            Join our workshops, seminars, and masterclasses to level up your AI readiness.
-            Each event is linked to an AI identity filter.
-          </p>
-        </motion.div>
-
-        {/* Events list */}
-        {loading ? (
-          <div className="space-y-4">
-            {[...Array(4)].map((_, i) => (
-              <div
-                key={i}
-                className="h-40 rounded-2xl bg-muted animate-pulse"
-              />
-            ))}
-          </div>
-        ) : events.length === 0 ? (
-          <div className="text-center py-16">
-            <Calendar className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-            <h3 className="font-semibold text-lg mb-2">No events scheduled</h3>
-            <p className="text-muted-foreground">
-              Check back soon for upcoming workshops and seminars!
+      <Header />
+      <main className="pt-24 pb-16">
+        <div className="container px-6 mx-auto">
+          <div className="max-w-3xl mb-16">
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              className="flex items-center gap-2 mb-4"
+            >
+              <div className="w-12 h-1 bg-primary rounded-full" />
+              <span className="text-sm font-black uppercase tracking-[0.3em] text-primary">2025 Roadmap</span>
+            </motion.div>
+            <motion.h1
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="text-4xl md:text-6xl font-display font-black leading-tight mb-6"
+            >
+              Upcoming <span className="text-muted-foreground italic">Seminars</span>
+            </motion.h1>
+            <p className="text-lg text-muted-foreground font-medium">
+              Join our curated sessions to deepen your AI expertise. Register via Luma for access to live events and materials.
             </p>
           </div>
-        ) : (
-          <div className="space-y-4">
-            {events.map((event, index) => {
-              const filter = event.filter_id
-                ? getFilterById(event.filter_id)
-                : null;
-              const registered = isRegistered(event.id);
-              const isPast = new Date(event.event_date) < new Date();
 
-              return (
-                <motion.div
-                  key={event.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.05 }}
-                  className={`group rounded-2xl border bg-card overflow-hidden transition-all hover:shadow-lg ${
-                    isPast
-                      ? "border-border opacity-60"
-                      : "border-border hover:border-primary/50"
-                  }`}
-                >
-                  <div className="flex flex-col md:flex-row">
-                    {/* Color accent */}
-                    <div
-                      className="w-full md:w-2 h-2 md:h-auto flex-shrink-0"
-                      style={{
-                        backgroundColor: filter
-                          ? getFilterColor(filter.id)
-                          : "hsl(var(--primary))",
-                      }}
-                    />
-
-                    {/* Content */}
-                    <div className="flex-1 p-6">
-                      <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
-                        <div className="flex-1">
-                          {/* Type & Filter badges */}
-                          <div className="flex flex-wrap items-center gap-2 mb-3">
-                            <span className="px-3 py-1 rounded-full bg-muted text-muted-foreground text-xs font-medium">
-                              {getEventTypeLabel(event.event_type)}
-                            </span>
-                            {filter && (
-                              <span
-                                className="px-3 py-1 rounded-full text-white text-xs font-medium flex items-center gap-1.5"
-                                style={{
-                                  backgroundColor: getFilterColor(filter.id),
-                                }}
-                              >
-                                <filter.icon className="h-3 w-3" />
-                                {filter.shortName}
-                              </span>
-                            )}
-                            {isPast && (
-                              <span className="px-3 py-1 rounded-full bg-muted text-muted-foreground text-xs font-medium">
-                                Past Event
-                              </span>
-                            )}
-                          </div>
-
-                          {/* Title */}
-                          <h3 className="font-display text-xl font-semibold mb-2">
-                            {event.title}
-                          </h3>
-
-                          {/* Description */}
-                          {event.description && (
-                            <p className="text-muted-foreground text-sm mb-4 line-clamp-2">
-                              {event.description}
-                            </p>
-                          )}
-
-                          {/* Meta info */}
-                          <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
-                            <div className="flex items-center gap-1.5">
-                              <Calendar className="h-4 w-4" />
-                              <span>
-                                {format(new Date(event.event_date), "MMM d, yyyy")}
-                              </span>
-                            </div>
-                            <div className="flex items-center gap-1.5">
-                              <Clock className="h-4 w-4" />
-                              <span>
-                                {format(new Date(event.event_date), "h:mm a")}
-                              </span>
-                            </div>
-                            {event.location && (
-                              <div className="flex items-center gap-1.5">
-                                <MapPin className="h-4 w-4" />
-                                <span>{event.location}</span>
-                              </div>
-                            )}
-                            {event.max_attendees && (
-                              <div className="flex items-center gap-1.5">
-                                <Users className="h-4 w-4" />
-                                <span>{event.max_attendees} spots</span>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Actions */}
-                        <div className="flex items-center gap-3 lg:flex-shrink-0">
-                          {!isPast && (
-                            <Button
-                              onClick={() => handleRegister(event.id)}
-                              disabled={registering === event.id}
-                              variant={registered ? "outline" : "default"}
-                              className="gap-2"
-                            >
-                              {registering === event.id ? (
-                                <div className="h-4 w-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                              ) : registered ? (
-                                <>
-                                  <CheckCircle className="h-4 w-4" />
-                                  Registered
-                                </>
-                              ) : (
-                                "Register Now"
-                              )}
-                            </Button>
-                          )}
-                          <Button variant="ghost" size="icon">
-                            <ExternalLink className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
+          <div className="grid gap-8 md:grid-cols-2">
+            {upcomingEvents.map((event, index) => (
+              <motion.div
+                key={event.id}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: index * 0.05 }}
+                className="group relative bg-card border border-border rounded-3xl p-8 hover:border-primary/50 transition-all hover:shadow-2xl"
+              >
+                <div className="flex flex-col h-full">
+                  <div className="flex justify-between items-start mb-6">
+                    <div className="p-3 rounded-2xl bg-primary/10 text-primary">
+                      <Calendar className="h-6 w-6" />
+                    </div>
+                    <span className="px-4 py-1 rounded-full bg-muted text-muted-foreground text-xs font-bold uppercase tracking-wider">
+                      {event.type}
+                    </span>
+                  </div>
+                  
+                  <h3 className="text-2xl font-display font-black mb-4 group-hover:text-primary transition-colors">
+                    {event.title}
+                  </h3>
+                  
+                  <div className="space-y-3 mb-8">
+                    <div className="flex items-center gap-3 text-muted-foreground">
+                      <Clock className="h-4 w-4" />
+                      <span className="text-sm font-medium">{event.date} • {event.time}</span>
+                    </div>
+                    <div className="flex items-center gap-3 text-muted-foreground">
+                      <MapPin className="h-4 w-4" />
+                      <span className="text-sm font-medium">{event.location}</span>
                     </div>
                   </div>
-                </motion.div>
-              );
-            })}
+
+                  <div className="mt-auto pt-6 border-t border-border/50">
+                    <Button asChild className="w-full rounded-2xl h-12 font-bold gap-2">
+                      <a href={event.lumaUrl} target="_blank" rel="noopener noreferrer">
+                        Register on Luma <ExternalLink className="h-4 w-4" />
+                      </a>
+                    </Button>
+                  </div>
+                </div>
+              </motion.div>
+            ))}
           </div>
-        )}
-
-        {/* My Registrations section */}
-        {user && registrations.length > 0 && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="mt-16"
-          >
-            <h3 className="font-display text-xl font-bold mb-6">
-              My Registrations ({registrations.length})
-            </h3>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {events
-                .filter((e) => isRegistered(e.id))
-                .map((event) => {
-                  const filter = event.filter_id
-                    ? getFilterById(event.filter_id)
-                    : null;
-
-                  return (
-                    <div
-                      key={event.id}
-                      className="rounded-xl border border-border bg-card p-4"
-                    >
-                      <div className="flex items-start gap-3">
-                        <div
-                          className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0"
-                          style={{
-                            backgroundColor: filter
-                              ? getFilterColor(filter.id)
-                              : "hsl(var(--primary))",
-                          }}
-                        >
-                          {filter ? (
-                            <filter.icon className="h-5 w-5 text-white" />
-                          ) : (
-                            <Calendar className="h-5 w-5 text-white" />
-                          )}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <h4 className="font-semibold text-sm truncate">
-                            {event.title}
-                          </h4>
-                          <p className="text-xs text-muted-foreground mt-1">
-                            {format(new Date(event.event_date), "MMM d, yyyy • h:mm a")}
-                          </p>
-                        </div>
-                        <CheckCircle className="h-5 w-5 text-green-500 flex-shrink-0" />
-                      </div>
-                    </div>
-                  );
-                })}
-            </div>
-          </motion.div>
-        )}
+        </div>
       </main>
+      <Footer />
     </div>
   );
 };

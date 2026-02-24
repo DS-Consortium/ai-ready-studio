@@ -12,10 +12,11 @@ export const CREDIT_COSTS = {
   POWER_VOTE: 10, // 10 credits for a power vote
 };
 
+// Updated pricing as per recommendation
 export const PURCHASE_PACKS = [
-  { id: 'pack_small', name: 'Starter Pack', credits: 50, price: 4.99 },
-  { id: 'pack_medium', name: 'Leader Pack', credits: 150, price: 12.99 },
-  { id: 'pack_large', name: 'Visionary Pack', credits: 500, price: 39.99 },
+  { id: 'pack_small', name: 'Starter Pack', credits: 10, price: 0.99, description: 'Great for a few extra votes' },
+  { id: 'pack_medium', name: 'Leader Pack', credits: 50, price: 3.99, description: 'Make your voice heard', popular: true },
+  { id: 'pack_large', name: 'Visionary Pack', credits: 200, price: 14.99, description: 'Dominate the leaderboard' },
 ];
 
 export const getUserCredits = async (userId: string): Promise<UserCredits | null> => {
@@ -59,8 +60,7 @@ export const spendCredits = async (userId: string, amount: number, reason: strin
   const { error: updateError } = await supabase
     .from('user_credits')
     .update({ 
-      balance: credits.balance - amount,
-      total_spent: supabase.rpc('increment', { row_id: userId, column_name: 'total_spent', amount })
+      balance: credits.balance - amount
     })
     .eq('user_id', userId);
 

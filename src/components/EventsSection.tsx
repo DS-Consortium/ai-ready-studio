@@ -7,30 +7,30 @@ import { DownloadCalendar } from "@/components/DownloadCalendar";
 const upcomingEvents = [
   {
     id: 1,
-    title: "AI Ethics & Governance Summit",
-    date: "March 25, 2026",
-    location: "Virtual + Nairobi",
-    filterTag: "AI Accountable",
-    color: "hsl(175, 80%, 40%)",
-    eventUrl: "https://legroupeds.com/events",
+    title: "The AI Readiness Roadmap: Shaping Future Institutions",
+    date: "Tuesday, February 18, 2025",
+    location: "Online / Dubai",
+    filterTag: "AI Ready",
+    color: "hsl(220, 70%, 45%)",
+    eventUrl: "https://lu.ma/3f35f29k",
   },
   {
     id: 2,
-    title: "Applied AI Bootcamp",
-    date: "April - June 2026",
-    location: "Hybrid Program",
-    filterTag: "AI Savvy",
-    color: "hsl(210, 100%, 50%)",
-    eventUrl: "https://legroupeds.com/events",
+    title: "Data Governance Masterclass: The Foundation of AI",
+    date: "March 17 - 19, 2025",
+    location: "Nairobi, Kenya",
+    filterTag: "AI Accountable",
+    color: "hsl(175, 80%, 40%)",
+    eventUrl: "https://lu.ma/dg-masterclass",
   },
   {
     id: 3,
-    title: "Digital Strategy Workshop",
-    date: "May 15-17, 2026",
-    location: "Singapore",
-    filterTag: "AI Driven",
-    color: "hsl(40, 90%, 50%)",
-    eventUrl: "https://legroupeds.com/events",
+    title: "AI Ethics & Governance: Building Trust in AI",
+    date: "Wednesday, March 25, 2025",
+    location: "Riyadh, Saudi Arabia",
+    filterTag: "AI Accountable",
+    color: "hsl(175, 80%, 40%)",
+    eventUrl: "https://lu.ma/ai-ethics-gov",
   },
 ];
 
@@ -63,7 +63,7 @@ export const EventsSection = () => {
               <div className="mt-8 flex flex-col gap-4 sm:flex-row">
                 <Button variant="hero" size="lg" className="gap-2" asChild>
                   <a href="https://legroupeds.com/events" target="_blank" rel="noopener noreferrer">
-                    View Full 2026 Roadmap
+                    View Full 2025 Roadmap
                     <ExternalLink className="h-4 w-4" />
                   </a>
                 </Button>
