@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Sparkles, Zap, Trophy, CreditCard } from "lucide-react";
+import { Sparkles, Zap, Trophy, CreditCard, Loader2 } from "lucide-react";
 import { PURCHASE_PACKS, getUserCredits, UserCredits } from "@/lib/credits";
+import { initiateStripeCheckout } from "@/lib/stripe-integration";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 
@@ -10,6 +11,7 @@ export const CreditsModal = ({ isOpen, onClose }: { isOpen: boolean, onClose: ()
   const { user } = useAuth();
   const [credits, setCredits] = useState<UserCredits | null>(null);
   const [loading, setLoading] = useState(false);
+  const [processingPack, setProcessingPack] = useState<string | null>(null);
 
   useEffect(() => {
     if (user && isOpen) {
@@ -23,13 +25,37 @@ export const CreditsModal = ({ isOpen, onClose }: { isOpen: boolean, onClose: ()
     setCredits(data);
   };
 
-  const handlePurchase = async (packId: string) => {
+  const handlePurchase = async (packId: string, credits: number, price: number) => {
+    if (!user) {
+      toast.error("Please sign in to purchase credits");
+      return;
+    }
+
+    setProcessingPack(packId);
     setLoading(true);
-    // Simulate payment gateway
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    toast.success("Payment successful! Credits added to your account.");
-    await loadCredits();
-    setLoading(false);
+
+    try {
+      // Initiate Stripe checkout session
+      const { sessionId, url } = await initiateStripeCheckout({
+        packId,
+        credits,
+        price,
+        customerEmail: user.email,
+        userId: user.id,
+      });
+
+      // Redirect to Stripe checkout or open in new window
+      if (url) {
+        window.location.href = url;
+      } else {
+        toast.info(`Checkout session created. Session ID: ${sessionId}`);
+      }
+    } catch (error: any) {
+      toast.error(error.message || "Failed to process payment. Please try again.");
+    } finally {
+      setProcessingPack(null);
+      setLoading(false);
+    }
   };
 
   return (
@@ -59,9 +85,9 @@ export const CreditsModal = ({ isOpen, onClose }: { isOpen: boolean, onClose: ()
             {PURCHASE_PACKS.map((pack) => (
               <button
                 key={pack.id}
-                onClick={() => handlePurchase(pack.id)}
+                onClick={() => handlePurchase(pack.id, pack.credits, pack.price)}
                 disabled={loading}
-                className="w-full group relative overflow-hidden bg-card hover:bg-muted border border-border hover:border-primary/50 rounded-2xl p-4 transition-all text-left flex items-center justify-between"
+                className="w-full group relative overflow-hidden bg-card hover:bg-muted border border-border hover:border-primary/50 rounded-2xl p-4 transition-all text-left flex items-center justify-between disabled:opacity-50"
               >
                 <div className="flex items-center gap-4">
                   <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
@@ -72,18 +98,31 @@ export const CreditsModal = ({ isOpen, onClose }: { isOpen: boolean, onClose: ()
                     <p className="text-xs text-muted-foreground">{pack.credits} Credits</p>
                   </div>
                 </div>
-                <div className="text-right">
-                  <p className="font-display font-bold text-lg">${pack.price}</p>
-                  <p className="text-[10px] text-primary font-bold uppercase">Buy Now</p>
+                <div className="text-right flex items-center gap-3">
+                  <div>
+                    <p className="font-display font-bold text-lg">${pack.price}</p>
+                    <p className="text-[10px] text-primary font-bold uppercase">Buy Now</p>
+                  </div>
+                  {processingPack === pack.id && <Loader2 className="h-5 w-5 animate-spin text-primary" />}
                 </div>
               </button>
             ))}
+          </div>
+
+          <div className="mt-6 p-4 bg-muted rounded-xl text-xs text-muted-foreground">
+            <p className="font-semibold mb-2">💡 How Credits Work</p>
+            <ul className="space-y-1 text-xs">
+              <li>• 1 Credit = 1 Standard Vote</li>
+              <li>• 50 Credits = 1 Power Vote (10x impact)</li>
+              <li>• Earn 100 Credits for completing your declaration</li>
+              <li>• All credits never expire</li>
+            </ul>
           </div>
         </div>
 
         <div className="flex justify-center pb-2">
           <p className="text-[10px] text-muted-foreground flex items-center gap-1">
-            <CreditCard className="h-3 w-3" /> Secure checkout powered by DS Consortium
+            <CreditCard className="h-3 w-3" /> Secure checkout powered by Stripe & DS Consortium
           </p>
         </div>
       </DialogContent>

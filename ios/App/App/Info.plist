@@ -24,6 +24,10 @@
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>We need camera access to record your AI readiness declaration. Your video will be processed with AI filters to create engaging content that showcases your vision for responsible AI leadership.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>We need microphone access to record high-quality audio for your AI readiness declaration. Your voice is essential for capturing your authentic message to the global AI Ready community.</string>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>

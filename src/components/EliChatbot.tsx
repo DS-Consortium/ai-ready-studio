@@ -208,7 +208,7 @@ export const EliChatbot = () => {
       return {
         id: crypto.randomUUID(),
         role: 'assistant',
-        content: "We have 14 upcoming seminars across Dubai, Nairobi, Riyadh, and more! You can see the full list on our Events page: https://legroupeds.com/events",
+        content: "We have 14 upcoming seminars across Dubai, Nairobi, Riyadh, and more! You can see the full list on our Events page: https://dsconsortium.com/events",
         timestamp: new Date(),
         suggestions: ['Upcoming Seminars', 'Knowledge Lab']
       };

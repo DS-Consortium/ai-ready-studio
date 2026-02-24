@@ -145,21 +145,36 @@ export class CanvasVideoRecorder {
   start() {
     this.chunks = [];
     
-    // Get canvas stream
+    // Get canvas stream with 30fps
     this.canvasStream = this.canvas.captureStream(30);
     
+    if (!this.canvasStream) {
+      throw new Error('Failed to capture canvas stream');
+    }
+
     // Add audio tracks from original stream
-    this.stream.getAudioTracks().forEach((track) => {
-      this.canvasStream?.addTrack(track);
-    });
+    try {
+      this.stream.getAudioTracks().forEach((track) => {
+        this.canvasStream?.addTrack(track);
+      });
+    } catch (err) {
+      console.warn('Could not add audio tracks:', err);
+    }
 
     const mimeType = MediaRecorder.isTypeSupported("video/webm;codecs=vp9")
       ? "video/webm;codecs=vp9"
-      : "video/webm";
+      : MediaRecorder.isTypeSupported("video/webm")
+      ? "video/webm"
+      : "video/webm;codecs=vp8";
       
     this.mediaRecorder = new MediaRecorder(this.canvasStream, { mimeType });
+    
     this.mediaRecorder.ondataavailable = (e) => {
       if (e.data.size > 0) this.chunks.push(e.data);
+    };
+
+    this.mediaRecorder.onerror = (event) => {
+      console.error('MediaRecorder error:', event.error);
     };
     
     this.mediaRecorder.start(100);

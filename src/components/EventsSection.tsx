@@ -7,33 +7,63 @@ import { DownloadCalendar } from "@/components/DownloadCalendar";
 const upcomingEvents = [
   {
     id: 1,
-    title: "AI Ethics & Governance Summit",
-    date: "March 25, 2026",
-    location: "Virtual + Nairobi",
-    filterTag: "AI Accountable",
-    color: "hsl(175, 80%, 40%)",
+    title: "Mastering AI: Building AI-Ready Institutions",
+    date: "March 24, 2026",
+    location: "Dubai / Hybrid",
+    filterTag: "AI Ready",
+    color: "hsl(210, 100%, 50%)",
     spots: 50,
-    eventUrl: "https://legroupeds.com/events",
+    eventUrl: "https://luma.com/ccyplzym",
   },
   {
     id: 2,
-    title: "Applied AI Bootcamp",
-    date: "April - June 2026",
-    location: "Hybrid Program",
+    title: "Data Governance Masterclass: Securing Your AI Investment",
+    date: "March 25-27, 2026",
+    location: "Dubai",
     filterTag: "AI Savvy",
-    color: "hsl(210, 100%, 50%)",
-    spots: 100,
-    eventUrl: "https://legroupeds.com/events",
+    color: "hsl(175, 80%, 40%)",
+    spots: 30,
+    eventUrl: "https://luma.com/2phisred",
   },
   {
     id: 3,
-    title: "Digital Strategy Workshop",
-    date: "May 15-17, 2026",
-    location: "Singapore",
-    filterTag: "AI Driven",
+    title: "AI Ethics, Bias & Governance in Emerging Markets",
+    date: "April 15, 2026",
+    location: "DC / Hybrid",
+    filterTag: "AI Accountable",
     color: "hsl(40, 90%, 50%)",
     spots: 40,
-    eventUrl: "https://legroupeds.com/events",
+    eventUrl: "https://luma.com/z93b8ot2",
+  },
+  {
+    id: 4,
+    title: "Cybersecurity for AI-Ready Ecosystems",
+    date: "April 22, 2026",
+    location: "Riyadh / Hybrid",
+    filterTag: "AI Driven",
+    color: "hsl(280, 85%, 45%)",
+    spots: 50,
+    eventUrl: "https://luma.com/tdyctocg",
+  },
+  {
+    id: 5,
+    title: "Applied AI in Action: From Analytics to Machine Learning",
+    date: "April 30 - June, 2026",
+    location: "Dubai / Hybrid",
+    filterTag: "AI Savvy",
+    color: "hsl(210, 100%, 50%)",
+    spots: 25,
+    eventUrl: "https://luma.com/8t6shpxe",
+  },
+  {
+    id: 6,
+    title: "Digital Strategy & Transformation in an AI-First Era",
+    date: "May 19-22, 2026",
+    location: "Dubai",
+    filterTag: "AI Driven",
+    color: "hsl(40, 90%, 50%)",
+    spots: 35,
+    eventUrl: "https://luma.com/7gh6acyl",
   },
 ];
 
@@ -65,7 +95,7 @@ export const EventsSection = () => {
 
               <div className="mt-8 flex flex-col gap-4 sm:flex-row">
                 <Button variant="hero" size="lg" className="gap-2" asChild>
-                  <a href="https://legroupeds.com/events" target="_blank" rel="noopener noreferrer">
+                  <a href="https://dsconsortium.com/events" target="_blank" rel="noopener noreferrer">
                     View Full 2026 Roadmap
                     <ExternalLink className="h-4 w-4" />
                   </a>
