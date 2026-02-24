@@ -13,6 +13,9 @@ import Gallery from "./pages/Gallery";
 import Events from "./pages/Events";
 import Rewards from "./pages/Rewards";
 import Admin from "./pages/Admin";
+import KnowledgeLibrary from "./pages/KnowledgeLibrary";
+import EventsCalendar from "./pages/EventsCalendar";
+import BottomNavigation from "./components/BottomNavigation";
 
 const queryClient = new QueryClient();
 
@@ -32,9 +35,12 @@ const App = () => (
             <Route path="/events" element={<Events />} />
             <Route path="/rewards" element={<Rewards />} />
             <Route path="/admin" element={<Admin />} />
+            <Route path="/knowledge-library" element={<KnowledgeLibrary />} />
+            <Route path="/events-calendar" element={<EventsCalendar />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
+          <BottomNavigation />
         </BrowserRouter>
       </AuthProvider>
     </TooltipProvider>
