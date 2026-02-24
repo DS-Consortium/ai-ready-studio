@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { RotateCcw, Check, ArrowLeft, Zap, Sparkles, Camera, Video, Share2, Lightbulb, Flame } from "lucide-react";
+import { RotateCcw, Check, ArrowLeft, Zap, Sparkles, Camera, Share2 } from "lucide-react";
 import { AI_FILTERS, AIFilter } from "@/lib/filters";
 import { getLensConfig, CanvasVideoRecorder } from "@/lib/canvas-recorder";
 import { awardCredits, CREDIT_COSTS } from "@/lib/credits";

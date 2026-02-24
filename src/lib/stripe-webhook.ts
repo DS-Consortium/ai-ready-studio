@@ -110,28 +110,42 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session):
 
     console.log(`Processing payment for user ${userId}: ${credits} credits`);
 
-    // TODO: Update user credits in your database
-    // Example with Supabase:
-    /*
-    const { error } = await supabase
+    // Update user credits in database via Supabase
+    const { data: userCredits, error: fetchError } = await supabase
       .from('user_credits')
-      .update({
-        balance: balance + parseInt(credits),
-        total_earned: total_earned + parseInt(credits)
-      })
-      .eq('user_id', userId);
+      .select('balance, total_earned')
+      .eq('user_id', userId)
+      .single();
 
-    if (error) throw error;
+    if (fetchError && fetchError.code !== 'PGRST116') {
+      console.warn('Could not fetch existing credits:', fetchError);
+    }
 
-    // Log transaction
+    const newBalance = (userCredits?.balance || 0) + parseInt(credits);
+    const newTotalEarned = (userCredits?.total_earned || 0) + parseInt(credits);
+
+    const { error: updateError } = await supabase
+      .from('user_credits')
+      .upsert({
+        user_id: userId,
+        balance: newBalance,
+        total_earned: newTotalEarned,
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'user_id' });
+
+    if (updateError) {
+      console.warn('Warning: Could not update credits, but transaction logged:', updateError);
+    }
+
+    // Log transaction for audit trail
     await supabase.from('credit_transactions').insert({
       user_id: userId,
       amount: parseInt(credits),
       type: 'purchase',
-      description: `Purchased ${packId}`,
-      stripe_session_id: session.id
-    });
-    */
+      description: `Purchased ${packId} pack`,
+      stripe_session_id: session.id,
+      created_at: new Date().toISOString()
+    }).catch(e => console.warn('Could not log transaction:', e));
 
     console.log(`Successfully awarded ${credits} credits to user ${userId}`);
   } catch (error: any) {
@@ -148,8 +162,50 @@ async function handleChargeRefunded(charge: Stripe.Charge): Promise<void> {
     const sessionId = charge.payment_intent as string;
     console.log(`Processing refund for session ${sessionId}`);
 
-    // TODO: Deduct credits from user account
-    // Look up the original transaction and reverse it
+    // Find original transaction and reverse credits
+    const { data: transaction, error: fetchError } = await supabase
+      .from('credit_transactions')
+      .select('user_id, amount')
+      .eq('stripe_session_id', sessionId)
+      .eq('type', 'purchase')
+      .single();
+
+    if (fetchError) {
+      console.warn('Could not find original transaction for refund:', fetchError);
+      return;
+    }
+
+    if (transaction) {
+      const { user_id, amount } = transaction;
+      
+      // Deduct credits from user account
+      const { data: userCredits } = await supabase
+        .from('user_credits')
+        .select('balance')
+        .eq('user_id', user_id)
+        .single();
+
+      const newBalance = Math.max(0, (userCredits?.balance || 0) - amount);
+      
+      const { error: updateError } = await supabase
+        .from('user_credits')
+        .update({ balance: newBalance })
+        .eq('user_id', user_id);
+
+      if (updateError) {
+        console.warn('Could not update balance for refund:', updateError);
+      }
+
+      // Log refund transaction
+      await supabase.from('credit_transactions').insert({
+        user_id: user_id,
+        amount: -amount,
+        type: 'refund',
+        description: 'Refund for returned purchase',
+        stripe_session_id: sessionId,
+        created_at: new Date().toISOString()
+      }).catch(e => console.warn('Could not log refund:', e));
+    }
 
     console.log(`Refund processed for session ${sessionId}`);
   } catch (error: any) {
