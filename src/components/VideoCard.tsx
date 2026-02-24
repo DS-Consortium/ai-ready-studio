@@ -35,7 +35,7 @@ export const VideoCard = ({ video, index, onVote }: VideoCardProps) => {
   
   const filter = getFilterById(video.filterId);
   const filterColor = getFilterColor(video.filterId);
-  const videoUrl = video.videoUrl || `https://dsconsortium.com/video/${video.id}`;
+  const videoUrl = video.videoUrl || `https://legroupeds.com/video/${video.id}`;
 
   const handleVote = async (isPowerVote: boolean = false) => {
     if (!user) {

@@ -13,7 +13,7 @@ const upcomingEvents = [
     filterTag: "AI Accountable",
     color: "hsl(175, 80%, 40%)",
     spots: 50,
-    eventUrl: "https://dsconsortium.com/events",
+    eventUrl: "https://legroupeds.com/events",
   },
   {
     id: 2,
@@ -23,7 +23,7 @@ const upcomingEvents = [
     filterTag: "AI Savvy",
     color: "hsl(210, 100%, 50%)",
     spots: 100,
-    eventUrl: "https://dsconsortium.com/events",
+    eventUrl: "https://legroupeds.com/events",
   },
   {
     id: 3,
@@ -33,7 +33,7 @@ const upcomingEvents = [
     filterTag: "AI Driven",
     color: "hsl(40, 90%, 50%)",
     spots: 40,
-    eventUrl: "https://dsconsortium.com/events",
+    eventUrl: "https://legroupeds.com/events",
   },
 ];
 
@@ -65,7 +65,7 @@ export const EventsSection = () => {
 
               <div className="mt-8 flex flex-col gap-4 sm:flex-row">
                 <Button variant="hero" size="lg" className="gap-2" asChild>
-                  <a href="https://dsconsortium.com/events" target="_blank" rel="noopener noreferrer">
+                  <a href="https://legroupeds.com/events" target="_blank" rel="noopener noreferrer">
                     View Full 2026 Roadmap
                     <ExternalLink className="h-4 w-4" />
                   </a>

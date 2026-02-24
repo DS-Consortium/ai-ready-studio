@@ -73,12 +73,12 @@ export const GallerySection = () => {
               </p>
               <div className="flex flex-wrap gap-4">
                 <Button size="lg" asChild className="rounded-2xl h-14 px-8 font-bold gap-2">
-                  <a href="https://dsconsortium.com/events" target="_blank" rel="noopener noreferrer">
+                  <a href="https://legroupeds.com/events" target="_blank" rel="noopener noreferrer">
                     Upcoming Seminars <ArrowRight className="h-4 w-4" />
                   </a>
                 </Button>
                 <Button variant="outline" size="lg" asChild className="rounded-2xl h-14 px-8 font-bold">
-                  <a href="https://dsconsortium.com/knowledge-lab" target="_blank" rel="noopener noreferrer">
+                  <a href="https://legroupeds.com/knowledge-lab" target="_blank" rel="noopener noreferrer">
                     Knowledge Lab Archive
                   </a>
                 </Button>
