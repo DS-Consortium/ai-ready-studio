@@ -19,6 +19,10 @@ const Record = () => {
   const [duration, setDuration] = useState(0);
   const [recordedBlob, setRecordedBlob] = useState<Blob | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [facingMode, setFacingMode] = useState<"user" | "environment">("user");
+  const [durationWarning, setDurationWarning] = useState(false);
+
+  const MAX_DURATION = 60; // Snapchat 60-second limit
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const previewVideoRef = useRef<HTMLVideoElement>(null);
@@ -40,7 +44,12 @@ const Record = () => {
   const startCamera = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "user", width: { ideal: 1080 }, height: { ideal: 1920 } },
+        video: { 
+          facingMode: facingMode, 
+          width: { ideal: 1080 }, 
+          height: { ideal: 1920 },
+          aspectRatio: { ideal: 9/16 }
+        },
         audio: true,
       });
       streamRef.current = stream;
@@ -57,6 +66,12 @@ const Record = () => {
     streamRef.current = null;
   };
 
+  const toggleCamera = async () => {
+    stopCamera();
+    setFacingMode(facingMode === "user" ? "environment" : "user");
+    setTimeout(startCamera, 300);
+  };
+
   const startRecording = () => {
     if (!streamRef.current || !selectedFilter) return;
     
@@ -66,7 +81,28 @@ const Record = () => {
     
     setRecordingState("recording");
     setDuration(0);
-    timerRef.current = setInterval(() => setDuration((d) => d + 1), 1000);
+    setDurationWarning(false);
+    
+    timerRef.current = setInterval(() => {
+      setDuration((d) => {
+        const newDuration = d + 1;
+        // Auto-stop at 60 seconds
+        if (newDuration >= MAX_DURATION) {
+          stopRecording();
+          toast({ 
+            title: "Recording complete", 
+            description: "Maximum 60-second recording reached.", 
+            variant: "default" 
+          });
+          return MAX_DURATION;
+        }
+        // Warn at 50 seconds
+        if (newDuration === 50) {
+          setDurationWarning(true);
+        }
+        return newDuration;
+      });
+    }, 1000);
   };
 
   const stopRecording = async () => {
@@ -147,6 +183,39 @@ const Record = () => {
     }
   };
 
+  const handleShare = async () => {
+    if (!recordedBlob || !selectedFilter) return;
+    
+    try {
+      const file = new File(
+        [recordedBlob], 
+        `${selectedFilter.shortName}-declaration.webm`, 
+        { type: "video/webm" }
+      );
+      
+      // Use Web Share API if available
+      if (navigator.share) {
+        await navigator.share({
+          title: `I Am ${selectedFilter.shortName}`,
+          text: `Check out my AI Ready declaration! Watch, vote, and get inspired by leaders from around the world.`,
+          files: [file],
+          url: window.location.origin
+        });
+      } else {
+        // Fallback
+        toast({ 
+          title: "Share", 
+          description: "Web sharing not available. Recording saved to your device." 
+        });
+      }
+    } catch (err: any) {
+      // User cancelled share
+      if (err.name !== 'AbortError') {
+        console.error("Share error:", err);
+      }
+    }
+  };
+
   const formatTime = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 
   return (
@@ -161,10 +230,11 @@ const Record = () => {
           <motion.div 
             initial={{ scale: 0.8, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
-            className="flex items-center gap-2 bg-red-600 text-white px-5 py-2 rounded-full text-sm font-black shadow-[0_0_20px_rgba(220,38,38,0.5)] border border-red-400/50"
+            className={`flex items-center gap-2 ${durationWarning ? 'bg-orange-600' : 'bg-red-600'} text-white px-5 py-2 rounded-full text-sm font-black shadow-[0_0_20px_rgba(220,38,38,0.5)] border border-red-400/50`}
           >
-            <div className="w-2.5 h-2.5 rounded-full bg-white animate-pulse" />
+            <div className={`w-2.5 h-2.5 rounded-full ${durationWarning ? 'bg-yellow-300' : 'bg-white'} ${durationWarning ? 'animate-bounce' : 'animate-pulse'}`} />
             {formatTime(duration)}
+            {durationWarning && <span className="ml-2 text-xs font-bold">TIME LIMIT NEAR</span>}
           </motion.div>
         )}
         
@@ -294,11 +364,15 @@ const Record = () => {
         <div className="flex justify-center items-center h-28 px-10">
           <div className="flex-1 flex justify-center">
              {recordingState === "idle" && (
-               <button className="w-12 h-12 rounded-full bg-white/10 backdrop-blur-xl border border-white/20 flex items-center justify-center text-white">
-                 <Camera className="w-6 h-6" />
-               </button>
-             )}
-          </div>
+                <button 
+                  onClick={toggleCamera}
+                  title="Toggle camera (front/back)"
+                  className="w-12 h-12 rounded-full bg-white/10 backdrop-blur-xl border border-white/20 flex items-center justify-center text-white hover:bg-white/20 transition-all hover:scale-110 active:scale-95"
+                >
+                  <Camera className="w-6 h-6" />
+                </button>
+              )}
+           </div>
 
           <div className="flex-shrink-0 mx-8">
             {recordingState === "idle" && (
@@ -330,6 +404,7 @@ const Record = () => {
                 <button 
                   onClick={resetRecording} 
                   className="flex flex-col items-center gap-2 text-white hover:text-red-400 transition-colors group"
+                  title="Retake video"
                 >
                   <div className="p-3 bg-white/10 rounded-full group-hover:bg-red-400/20 transition-colors">
                     <RotateCcw className="w-8 h-8" />
@@ -338,8 +413,20 @@ const Record = () => {
                 </button>
                 <div className="w-px h-12 bg-white/20" />
                 <button 
+                  onClick={handleShare} 
+                  className="flex flex-col items-center gap-2 text-white hover:text-blue-400 transition-colors group"
+                  title="Share video"
+                >
+                  <div className="p-3 bg-white/10 rounded-full group-hover:bg-blue-400/20 transition-colors">
+                    <Share2 className="w-8 h-8" />
+                  </div>
+                  <span className="text-[10px] font-black uppercase tracking-widest">Share</span>
+                </button>
+                <div className="w-px h-12 bg-white/20" />
+                <button 
                   onClick={handleSubmit} 
                   className="flex flex-col items-center gap-2 text-white hover:text-green-400 transition-colors group"
+                  title="Submit video"
                 >
                   <div className="p-3 bg-white/10 rounded-full group-hover:bg-green-400/20 transition-colors">
                     <Check className="w-10 h-10" />
@@ -358,12 +445,10 @@ const Record = () => {
           </div>
 
           <div className="flex-1 flex justify-center">
-            {recordingState === "idle" && (
-               <button className="w-12 h-12 rounded-full bg-white/10 backdrop-blur-xl border border-white/20 flex items-center justify-center text-white">
-                 <Share2 className="w-6 h-6" />
-               </button>
+            {recordingState === "preview" && (
+               <div />
              )}
-          </div>
+           </div>
         </div>
       </div>
     </div>

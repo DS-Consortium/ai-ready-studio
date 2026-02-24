@@ -15,6 +15,7 @@ import Rewards from "./pages/Rewards";
 import Admin from "./pages/Admin";
 import KnowledgeLibrary from "./pages/KnowledgeLibrary";
 import EventsCalendar from "./pages/EventsCalendar";
+import VideoPlayer from "./pages/VideoPlayer";
 import BottomNavigation from "./components/BottomNavigation";
 
 const queryClient = new QueryClient();
@@ -37,6 +38,7 @@ const App = () => (
             <Route path="/admin" element={<Admin />} />
             <Route path="/knowledge-library" element={<KnowledgeLibrary />} />
             <Route path="/events-calendar" element={<EventsCalendar />} />
+            <Route path="/video/:id" element={<VideoPlayer />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
