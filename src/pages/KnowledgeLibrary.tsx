@@ -329,7 +329,15 @@ const KnowledgeLibrary = () => {
           </div>
         ) : error ? (
           <div className="text-center py-12">
-            <p className="text-destructive">Failed to load knowledge library</p>
+            <p className="text-destructive mb-2">Failed to load knowledge library</p>
+            <p className="text-muted-foreground text-sm">Check your internet connection and try again</p>
+          </div>
+        ) : !seriesData || seriesData.length === 0 ? (
+          <div className="flex items-center justify-center py-12">
+            <div className="text-center space-y-3">
+              <p className="text-muted-foreground font-medium">Knowledge Library Coming Soon</p>
+              <p className="text-sm text-muted-foreground">Video content will be available shortly. Check back soon!</p>
+            </div>
           </div>
         ) : filteredSeries.length === 0 && !showExclusive ? (
           <div className="flex items-center justify-center py-12">

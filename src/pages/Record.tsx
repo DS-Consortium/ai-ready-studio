@@ -53,6 +53,14 @@ const Record = () => {
 
   const startCamera = async () => {
     try {
+      // Request camera permissions on Android 6.0+
+      try {
+        const { Camera } = await import('@capacitor/camera');
+        await Camera.requestPermissions({ permissions: ['camera'] });
+      } catch (e) {
+        console.warn('Capacitor camera permission check skipped:', e);
+      }
+
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { 
           facingMode: facingMode, 
@@ -67,7 +75,27 @@ const Record = () => {
         videoRef.current.srcObject = stream;
       }
     } catch (err) {
-      toast({ title: "Camera access denied", description: "Please allow camera access to record.", variant: "destructive" });
+      console.error('Camera error:', err);
+      const errorMessage = (err as any)?.message || '';
+      if (errorMessage.includes('Permission denied') || errorMessage.includes('NotAllowedError')) {
+        toast({ 
+          title: "Camera permission denied", 
+          description: "Please allow camera access in your device settings to record videos. Go to Settings > Apps > I Am AI Ready > Permissions > Camera and allow access.", 
+          variant: "destructive" 
+        });
+      } else if (errorMessage.includes('NotFoundError')) {
+        toast({ 
+          title: "No camera found", 
+          description: "Your device doesn't have a camera or it's not accessible.", 
+          variant: "destructive" 
+        });
+      } else {
+        toast({ 
+          title: "Camera access denied", 
+          description: "Please allow camera access to record. Check your device settings.", 
+          variant: "destructive" 
+        });
+      }
     }
   };
 

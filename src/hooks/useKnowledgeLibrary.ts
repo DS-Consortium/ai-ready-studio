@@ -38,7 +38,16 @@ export const useKnowledgeLibrary = () => {
           .select("*")
           .order("sort_order", { ascending: true });
 
-        if (seriesError) throw seriesError;
+        if (seriesError) {
+          console.error("Series fetch error:", seriesError);
+          // Return empty array instead of throwing, so UI shows "no content" message
+          return [];
+        }
+
+        if (!seriesData || seriesData.length === 0) {
+          console.warn("No video series found in database");
+          return [];
+        }
 
         // Fetch all videos
         const { data: videosData, error: videosError } = await supabase
@@ -46,7 +55,11 @@ export const useKnowledgeLibrary = () => {
           .select("*")
           .order("sort_order", { ascending: true });
 
-        if (videosError) throw videosError;
+        if (videosError) {
+          console.error("Videos fetch error:", videosError);
+          // Return series without videos
+          return seriesData || [];
+        }
 
         // Map series with their videos
         const seriesWithVideos: VideoSeries[] = (seriesData || []).map((series) => ({
@@ -57,7 +70,8 @@ export const useKnowledgeLibrary = () => {
         return seriesWithVideos;
       } catch (error) {
         console.error("Error fetching knowledge library:", error);
-        throw error;
+        // Return empty array on error instead of throwing
+        return [];
       }
     },
     staleTime: 1000 * 60 * 5, // Cache for 5 minutes
