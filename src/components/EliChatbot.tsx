@@ -5,10 +5,10 @@ import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
+import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { Mic, Volume2, X, Minus, Maximize2, Send, Sparkles, Zap, Calendar, BookOpen } from 'lucide-react';
-import { toast } from 'sonner';
-import { motion, AnimatePresence } from 'framer-motion';
+import { Mic, Volume2, MessageCircle, X, Bot } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 
 const eliAvatarUrl = "/images/eli_chatbot.png"; 
 
@@ -23,16 +23,17 @@ interface Message {
 const INITIAL_MESSAGE: Message = {
   id: 'welcome',
   role: 'assistant',
-  content: "Hi! I'm Eli, your AI Readiness guide. I'm here to help you navigate the 'Are You AI Ready?' campaign, understand our DSC Filters, and explore the Knowledge Lab. How can I assist you today?",
+  content: "Hi! I'm Eli, your virtual AI Readiness guide. I can help you declare your AI readiness, navigate the video contest, find upcoming events, and answer questions about the DS Consortium ecosystem. How can I help you today?",
   timestamp: new Date(),
   suggestions: [
     'How do I record a video?',
-    'What are DSC Filters?',
-    'Tell me about the prizes',
-    'How do I earn voting credits?'
+    'What are the AI filters?',
+    'Show me upcoming events',
+    'How does voting work?'
   ]
 };
 
+// Reusable Avatar component
 const Avatar = ({ 
   src, 
   alt = "Eli", 
@@ -47,26 +48,26 @@ const Avatar = ({
   const sizeClasses = {
     sm:     "w-7 h-7",
     default: "w-8 h-8",
-    header:  "w-12 h-12"
+    header:  "w-10 h-10"
   }[size];
 
   return (
     <div className={cn(
-      "relative rounded-2xl overflow-hidden shrink-0 border-2 border-background shadow-md",
+      "relative rounded-full overflow-hidden shrink-0 border-2 border-background shadow-sm",
       sizeClasses,
-      isSpeaking && "animate-pulse border-primary/60 ring-4 ring-primary/20"
+      isSpeaking && "animate-pulse border-primary/60 ring-2 ring-primary/30"
     )}>
       <img 
         src={src} 
         alt={alt} 
         className="w-full h-full object-cover"
         onError={(e) => {
-          (e.target as HTMLImageElement).src = "https://api.dicebear.com/7.x/bottts/svg?seed=Eli";
+          (e.target as HTMLImageElement).src = "https://via.placeholder.com/80?text=Eli";
         }}
       />
       {isSpeaking && (
         <div className="absolute inset-0 flex items-center justify-center bg-black/10">
-          <div className="w-6 h-6 rounded-full bg-primary/40 animate-ping" />
+          <div className="w-5 h-5 rounded-full bg-primary/40 animate-ping" />
         </div>
       )}
     </div>
@@ -74,8 +75,9 @@ const Avatar = ({
 };
 
 export const EliChatbot = () => {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [isOpen, setIsOpen] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
   const [messages, setMessages] = useState<Message[]>([INITIAL_MESSAGE]);
@@ -88,6 +90,7 @@ export const EliChatbot = () => {
   const speechRecognition = useRef<any>(null);
   const speechSynthesis = useRef<SpeechSynthesis | null>(null);
 
+  // Initialize speech APIs
   useEffect(() => {
     const SpeechRecognitionConstructor =
       (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
@@ -107,7 +110,7 @@ export const EliChatbot = () => {
 
   const toggleListening = () => {
     if (!speechRecognition.current) {
-      toast.error("Voice input is not supported in your browser.");
+      toast({ title: "Voice input not supported", description: "Try Chrome or Edge.", variant: "destructive" });
       return;
     }
     if (isListening) {
@@ -142,14 +145,9 @@ export const EliChatbot = () => {
       const welcomeMsg: Message = {
         id: crypto.randomUUID(),
         role: 'assistant',
-        content: `Welcome back, ${name}! Ready to make your AI declaration today? I can help you pick a DSC filter or show you how to earn more voting credits.`,
+        content: `Welcome back, ${name}! Ready to continue your AI readiness journey? You can record a new video, check the leaderboard, or browse upcoming events.`,
         timestamp: new Date(),
-        suggestions: [
-          'Pick a DSC Filter',
-          'How to earn credits',
-          'View my dashboard',
-          'See top leaders'
-        ]
+        suggestions: ['Record a video', 'View leaderboard', 'Upcoming events']
       };
       setMessages([INITIAL_MESSAGE, welcomeMsg]);
     }
@@ -161,65 +159,55 @@ export const EliChatbot = () => {
     }
   }, [messages, isTyping]);
 
-  const generateResponse = (input: string): Message => {
-    const lower = input.toLowerCase();
+  const generateResponse = (message: string): Message => {
+    const lower = message.toLowerCase();
     
-    if (lower.includes('record') || lower.includes('video') || lower.includes('create')) {
+    if (lower.includes('record') || lower.includes('video') || lower.includes('contest')) {
       return {
         id: crypto.randomUUID(),
         role: 'assistant',
-        content: "To record your declaration, click the 'Create Your Video' button on the home page or go directly to the Record page. You'll be able to choose from our 8 DSC Filters!",
+        content: "To record a video: 1) Go to the Record page. 2) Select an AR filter that represents your AI journey. 3) Press the big Record button. 4) Record for up to 60 seconds. 5) Review and submit! Your video will be baked with the filter and shared with the community.",
         timestamp: new Date(),
-        suggestions: ['Go to Record page', 'What are DSC Filters?']
+        suggestions: ['Go to Record page', 'What are the filters?']
       };
     }
 
-    if (lower.includes('filter')) {
+    if (lower.includes('filter') || lower.includes('lens')) {
       return {
         id: crypto.randomUUID(),
         role: 'assistant',
-        content: "We have 8 unique DSC Filters (like AI Savvy, AI Driven, etc.) that add AR-style text overlays to your video. You can scroll through them at the bottom of the camera screen.",
+        content: "We have 8 unique AI filters including 'AI Ready', 'AI Savvy', 'AI Accountable', and 'AI Driven'. Each one adds a professional AR text lens to your recording to highlight your specific AI identity.",
         timestamp: new Date(),
-        suggestions: ['Show me all filters', 'How do they work?']
+        suggestions: ['Try filters now', 'How does voting work?']
       };
     }
 
-    if (lower.includes('credit') || lower.includes('vote') || lower.includes('paid')) {
+    if (lower.includes('vote') || lower.includes('voting') || lower.includes('paid')) {
       return {
         id: crypto.randomUUID(),
         role: 'assistant',
-        content: "Our gaming-style voting system allows you to use credits to support your favorite leaders. You can earn credits by completing your own declaration or purchase 'Power Votes' to boost someone's rank!",
+        content: "Our paid voting system allows the community to support their favorite creators. You can purchase voting credits to cast multiple votes for a video. High-vote videos climb the leaderboard and gain more visibility!",
         timestamp: new Date(),
-        suggestions: ['Buy credits', 'How to vote?']
+        suggestions: ['View leaderboard', 'How to get credits?']
       };
     }
 
-    if (lower.includes('prize') || lower.includes('reward')) {
+    if (lower.includes('event') || lower.includes('upcoming')) {
       return {
         id: crypto.randomUUID(),
         role: 'assistant',
-        content: "The top leaders on our leaderboard win exclusive prizes, including full scholarships to our Masterclasses and featured spots in the DS Knowledge Lab!",
+        content: "We have several upcoming seminars and workshops! You can view the full 2026 roadmap on our Events page, register for sessions, and download them to your calendar.",
         timestamp: new Date(),
-        suggestions: ['View Leaderboard', 'See Prizes']
-      };
-    }
-
-    if (lower.includes('seminar') || lower.includes('event')) {
-      return {
-        id: crypto.randomUUID(),
-        role: 'assistant',
-        content: "We have 14 upcoming seminars across Dubai, Nairobi, Riyadh, and more! You can see the full list on our Events page: https://dsconsortium.com/events",
-        timestamp: new Date(),
-        suggestions: ['Upcoming Seminars', 'Knowledge Lab']
+        suggestions: ['View Events page', 'Download calendar']
       };
     }
 
     return {
       id: crypto.randomUUID(),
       role: 'assistant',
-      content: "I'm Eli, and I'm here to help you become AI Ready! You can ask me about recording videos, our DSC filters, the voting system, or upcoming events at DS Consortium.",
+      content: "I'm here to help you with the I Am AI Ready platform! You can ask about recording videos, AR filters, voting, or events. What's on your mind?",
       timestamp: new Date(),
-      suggestions: ['Record a video', 'How to vote?', 'Upcoming events']
+      suggestions: ['Record a video', 'Upcoming events', 'How to vote']
     };
   };
 
@@ -241,10 +229,6 @@ export const EliChatbot = () => {
     const response = generateResponse(userMessage.content);
     setIsTyping(false);
     setMessages(prev => [...prev, response]);
-    
-    if (response.content.length < 150) {
-      speakMessage(response.content);
-    }
   };
 
   const handleSuggestionClick = (suggestion: string) => {
@@ -254,139 +238,84 @@ export const EliChatbot = () => {
 
   if (!isOpen) {
     return (
-      <motion.button
-        whileHover={{ scale: 1.05 }}
-        whileTap={{ scale: 0.95 }}
+      <Button
         onClick={() => setIsOpen(true)}
-        className="fixed bottom-6 right-6 z-50 w-16 h-16 rounded-[2rem] bg-primary text-primary-foreground shadow-2xl flex items-center justify-center hover:shadow-primary/30 transition-all border-4 border-background"
+        className="fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden p-0 bg-gradient-to-br from-primary to-primary/80"
+        size="icon"
       >
-        <Avatar src={eliAvatarUrl} alt="Eli" size="default" />
-      </motion.button>
+        <Avatar src={eliAvatarUrl} alt="Eli" size="sm" />
+      </Button>
     );
   }
 
   return (
-    <AnimatePresence>
-      <motion.div
-        initial={{ opacity: 0, scale: 0.9, y: 20 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.9, y: 20 }}
-        className={cn(
-          "fixed z-50 shadow-2xl transition-all duration-300 flex flex-col overflow-hidden border border-primary/20 rounded-[2.5rem] bg-background/95 backdrop-blur-2xl",
-          isMinimized 
-            ? "bottom-6 right-6 w-72 h-16" 
-            : "bottom-6 right-6 w-[400px] h-[620px] max-h-[90vh]"
-        )}
-      >
-        <div className="flex items-center justify-between p-6 bg-primary text-primary-foreground">
-          <div className="flex items-center gap-4">
-            <Avatar src={eliAvatarUrl} alt="Eli" size="header" isSpeaking={isSpeaking} />
-            <div>
-              <h4 className="font-display font-black text-lg leading-none">Eli</h4>
-              <p className="text-[10px] opacity-80 mt-1 uppercase tracking-[0.2em] font-black">AI Readiness Guide</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-1">
-            <Button variant="ghost" size="icon" className="h-10 w-10 text-primary-foreground hover:bg-white/10 rounded-xl" onClick={() => setIsMinimized(!isMinimized)}>
-              {isMinimized ? <Maximize2 className="h-5 h-5" /> : <Minus className="h-5 w-5" />}
-            </Button>
-            <Button variant="ghost" size="icon" className="h-10 w-10 text-primary-foreground hover:bg-white/10 rounded-xl" onClick={() => setIsOpen(false)}>
-              <X className="h-5 w-5" />
-            </Button>
+    <Card className={cn(
+      "fixed z-50 shadow-2xl transition-all duration-300 flex flex-col bg-card border-border overflow-hidden",
+      isMinimized ? "bottom-6 right-6 w-80 h-14" : "bottom-6 right-6 w-96 h-[550px] max-h-[85vh]"
+    )}>
+      {/* Header */}
+      <div className="flex items-center justify-between p-3 border-b border-border bg-primary text-primary-foreground">
+        <div className="flex items-center gap-3">
+          <Avatar src={eliAvatarUrl} alt="Eli" size="header" isSpeaking={isSpeaking} />
+          <div>
+            <h4 className="font-semibold text-sm">Eli</h4>
+            <p className="text-[10px] opacity-80">AI Readiness Guide</p>
           </div>
         </div>
+        <div className="flex items-center gap-1">
+          <Button variant="ghost" size="sm" className="h-8 text-primary-foreground hover:bg-white/10" onClick={() => setIsMinimized(!isMinimized)}>
+            {isMinimized ? 'Expand' : 'Min'}
+          </Button>
+          <Button variant="ghost" size="sm" className="h-8 text-primary-foreground hover:bg-white/10" onClick={() => setIsOpen(false)}>
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
 
-        {!isMinimized && (
-          <>
-            <ScrollArea className="flex-1 p-6 bg-muted/20" ref={scrollRef}>
-              <div className="space-y-6">
-                {messages.map((message) => (
-                  <div key={message.id} className={cn("flex gap-4", message.role === 'user' ? 'justify-end' : 'justify-start')}>
-                    {message.role === 'assistant' && <Avatar src={eliAvatarUrl} alt="Eli" size="sm" />}
-                    <div className={cn(
-                      "max-w-[85%] rounded-[1.5rem] px-5 py-3 text-sm shadow-sm font-medium leading-relaxed", 
-                      message.role === 'user' 
-                        ? 'bg-primary text-primary-foreground rounded-tr-none' 
-                        : 'bg-card text-foreground rounded-tl-none border border-border'
-                    )}>
-                      <p className="whitespace-pre-wrap">{message.content}</p>
-                      {message.suggestions && (
-                        <div className="flex flex-wrap gap-2 mt-4">
-                          {message.suggestions.map((s, i) => (
-                            <button 
-                              key={i} 
-                              onClick={() => handleSuggestionClick(s)} 
-                              className="text-[10px] bg-primary/5 hover:bg-primary/10 text-primary border border-primary/20 rounded-full px-3 py-1.5 transition-colors font-bold uppercase tracking-wider"
-                            >
-                              {s}
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                      {message.role === 'assistant' && (
-                        <div className="flex items-center gap-2 mt-3 pt-3 border-t border-border/10">
-                           <button onClick={() => speakMessage(message.content)} className="text-primary/60 hover:text-primary transition-colors" disabled={isSpeaking}>
-                             <Volume2 className={cn("h-4 w-4", isSpeaking && "animate-pulse")} />
-                           </button>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                ))}
-                {isTyping && (
-                  <div className="flex gap-4">
-                    <Avatar src={eliAvatarUrl} alt="Eli" size="sm" />
-                    <div className="bg-card border border-border rounded-[1.5rem] rounded-tl-none px-5 py-4 shadow-sm">
-                      <div className="flex gap-1.5">
-                        <span className="w-2 h-2 bg-primary/40 rounded-full animate-bounce" />
-                        <span className="w-2 h-2 bg-primary/40 rounded-full animate-bounce [animation-delay:0.2s]" />
-                        <span className="w-2 h-2 bg-primary/40 rounded-full animate-bounce [animation-delay:0.4s]" />
+      {!isMinimized && (
+        <>
+          <ScrollArea className="flex-1 p-4 bg-secondary/5" ref={scrollRef}>
+            <div className="space-y-4">
+              {messages.map((message) => (
+                <div key={message.id} className={cn("flex gap-3", message.role === 'user' ? 'justify-end' : 'justify-start')}>
+                  {message.role === 'assistant' && <Avatar src={eliAvatarUrl} alt="Eli" />}
+                  <div className={cn("max-w-[80%] rounded-2xl px-4 py-2.5 text-sm shadow-sm", 
+                    message.role === 'user' ? 'bg-primary text-primary-foreground rounded-tr-none' : 'bg-background border border-border rounded-tl-none')}>
+                    <p className="whitespace-pre-wrap leading-relaxed">{message.content}</p>
+                    {message.suggestions && (
+                      <div className="flex flex-wrap gap-2 mt-3">
+                        {message.suggestions.map((s, idx) => (
+                          <Button key={idx} variant="outline" size="sm" className="text-[10px] h-7 px-2" onClick={() => handleSuggestionClick(s)}>{s}</Button>
+                        ))}
                       </div>
-                    </div>
+                    )}
+                    {message.role === 'assistant' && (
+                      <Button onClick={() => speakMessage(message.content)} size="icon" variant="ghost" className="mt-1 h-6 w-6" disabled={isSpeaking}>
+                        <Volume2 className={cn("h-3.5 w-3.5", isSpeaking && "text-primary animate-pulse")} />
+                      </Button>
+                    )}
                   </div>
-                )}
-              </div>
-            </ScrollArea>
-            
-            {/* Quick Actions Bar */}
-            <div className="px-6 py-2 flex gap-2 overflow-x-auto no-scrollbar bg-card/50">
-               <button onClick={() => handleSuggestionClick("Upcoming Seminars")} className="whitespace-nowrap flex items-center gap-2 px-3 py-1.5 rounded-full bg-muted border border-border text-[10px] font-bold uppercase tracking-widest hover:bg-muted/80">
-                 <Calendar className="h-3 w-3 text-primary" /> Events
-               </button>
-               <button onClick={() => handleSuggestionClick("DSC Filters")} className="whitespace-nowrap flex items-center gap-2 px-3 py-1.5 rounded-full bg-muted border border-border text-[10px] font-bold uppercase tracking-widest hover:bg-muted/80">
-                 <Sparkles className="h-3 w-3 text-primary" /> Filters
-               </button>
-               <button onClick={() => handleSuggestionClick("Knowledge Lab")} className="whitespace-nowrap flex items-center gap-2 px-3 py-1.5 rounded-full bg-muted border border-border text-[10px] font-bold uppercase tracking-widest hover:bg-muted/80">
-                 <BookOpen className="h-3 w-3 text-primary" /> Lab
-               </button>
+                </div>
+              ))}
+              {isTyping && (
+                <div className="flex gap-3">
+                  <Avatar src={eliAvatarUrl} alt="Eli" />
+                  <div className="bg-background border border-border rounded-2xl rounded-tl-none px-4 py-2.5">
+                    <div className="flex gap-1.5"><span className="w-1.5 h-1.5 bg-muted-foreground/60 rounded-full animate-bounce" /><span className="w-1.5 h-1.5 bg-muted-foreground/60 rounded-full animate-bounce delay-75" /><span className="w-1.5 h-1.5 bg-muted-foreground/60 rounded-full animate-bounce delay-150" /></div>
+                  </div>
+                </div>
+              )}
             </div>
-
-            <div className="p-6 bg-card border-t border-border flex gap-3 items-center">
-              <Button onClick={toggleListening} size="icon" variant={isListening ? 'destructive' : 'outline'} className="h-12 w-12 shrink-0 rounded-2xl border-border">
-                <Mic className={cn("h-6 w-6", isListening && "animate-pulse")} />
-              </Button>
-              <div className="relative flex-1">
-                <Input
-                  ref={inputRef}
-                  value={inputValue}
-                  onChange={(e) => setInputValue(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-                  placeholder="Ask Eli anything..."
-                  className="w-full h-12 rounded-2xl border-border focus-visible:ring-primary pr-12 font-medium"
-                />
-                <Button 
-                  onClick={handleSend} 
-                  disabled={!inputValue.trim() || isTyping} 
-                  size="icon" 
-                  className="absolute right-1 top-1 h-10 w-10 rounded-xl"
-                >
-                  <Send className="h-5 w-5" />
-                </Button>
-              </div>
-            </div>
-          </>
-        )}
-      </motion.div>
-    </AnimatePresence>
+          </ScrollArea>
+          <div className="p-3 border-t border-border flex gap-2 items-center bg-background">
+            <Button onClick={toggleListening} size="icon" variant={isListening ? 'destructive' : 'secondary'} className="h-9 w-9 shrink-0"><Mic className="h-4 w-4" /></Button>
+            <Input value={inputValue} onChange={(e) => setInputValue(e.target.value)} onKeyPress={(e) => e.key === 'Enter' && handleSend()} placeholder="Ask Eli anything..." className="flex-1 h-9 text-sm" />
+            <Button onClick={handleSend} disabled={!inputValue.trim() || isTyping} className="h-9 px-4 text-sm">Send</Button>
+          </div>
+        </>
+      )}
+    </Card>
   );
 };
+
+export default EliChatbot;
