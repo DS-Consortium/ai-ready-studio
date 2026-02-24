@@ -230,33 +230,59 @@ const Record = () => {
 
   return (
     <div className="fixed inset-0 bg-black flex flex-col overflow-hidden font-sans select-none">
-      {/* Top bar */}
-      <div className="absolute top-0 left-0 right-0 z-40 flex items-center justify-between p-6 bg-gradient-to-b from-black/80 via-black/40 to-transparent">
-        <button onClick={() => navigate(-1)} className="text-white hover:opacity-70 transition-opacity p-2 bg-black/20 rounded-full backdrop-blur-md border border-white/10">
-          <ArrowLeft className="w-6 h-6" />
-        </button>
+      {/* ═══════════════════════════════════════════════════════════════
+          TOP BAR - Snapchat Style (Minimal, semi-transparent)
+          ═══════════════════════════════════════════════════════════════ */}
+      <div className="absolute top-0 left-0 right-0 z-40 flex items-center justify-between px-5 py-4 backdrop-blur-md bg-black/30 border-b border-white/5">
         
+        {/* Left: Back Button */}
+        <motion.button 
+          whileTap={{ scale: 0.85 }}
+          onClick={() => navigate(-1)} 
+          className="relative group flex items-center justify-center w-12 h-12 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 hover:bg-white/20 hover:border-white/40 transition-all duration-200 active:scale-90"
+          title="Back"
+        >
+          <SnapIcon icon={ArrowLeft} size={22} />
+          <div className="absolute inset-0 rounded-full bg-white/0 group-active:bg-white/10 transition-all" />
+        </motion.button>
+
+        {/* Center: Duration Timer (Recording Only) */}
         {recordingState === "recording" && (
           <motion.div 
             initial={{ scale: 0.8, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
-            className={`flex items-center gap-2 ${durationWarning ? 'bg-orange-600' : 'bg-red-600'} text-white px-5 py-2 rounded-full text-sm font-black shadow-[0_0_20px_rgba(220,38,38,0.5)] border border-red-400/50`}
+            exit={{ scale: 0.8, opacity: 0 }}
+            className={`flex items-center gap-2 px-5 py-2 rounded-full font-black text-sm backdrop-blur-xl border transition-all duration-300 ${
+              durationWarning 
+                ? 'bg-yellow-500/30 border-yellow-400/40 text-yellow-100 shadow-[0_0_15px_rgba(234,179,8,0.3)]' 
+                : 'bg-red-600/30 border-red-400/40 text-red-100 shadow-[0_0_15px_rgba(220,38,38,0.3)]'
+            }`}
           >
-            <div className={`w-2.5 h-2.5 rounded-full ${durationWarning ? 'bg-yellow-300' : 'bg-white'} ${durationWarning ? 'animate-bounce' : 'animate-pulse'}`} />
-            {formatTime(duration)}
-            {durationWarning && <span className="ml-2 text-xs font-bold">TIME LIMIT NEAR</span>}
+            <motion.div 
+              animate={{ scale: durationWarning ? [1, 1.2, 1] : [1, 0.8, 1] }}
+              transition={{ duration: 0.6, repeat: Infinity }}
+              className={`w-2 h-2 rounded-full ${durationWarning ? 'bg-yellow-300' : 'bg-red-300'}`} 
+            />
+            <span className="tracking-wide">{formatTime(duration)}</span>
+            {durationWarning && <span className="ml-1 text-xs font-bold animate-pulse">TIME LIMIT NEAR</span>}
           </motion.div>
         )}
-        
-        <div className="flex gap-3">
-          <div className="w-10 h-10 rounded-full bg-black/20 backdrop-blur-md border border-white/10 flex items-center justify-center text-white">
-            <Zap className="w-5 h-5" />
-          </div>
-        </div>
+
+        {/* Right: Settings/Flash Button */}
+        <motion.button 
+          whileTap={{ scale: 0.85 }}
+          className="relative group flex items-center justify-center w-12 h-12 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 hover:bg-white/20 hover:border-white/40 transition-all duration-200 active:scale-90"
+          title="Settings"
+        >
+          <SnapIcon icon={Zap} size={22} />
+          <div className="absolute inset-0 rounded-full bg-white/0 group-active:bg-white/10 transition-all" />
+        </motion.button>
       </div>
 
-      {/* Main Viewport */}
-      <div className="flex-1 relative">
+      {/* ═══════════════════════════════════════════════════════════════
+          MAIN VIEWPORT - Full Screen Camera
+          ═══════════════════════════════════════════════════════════════ */}
+      <div className="flex-1 relative mt-16">
         <AnimatePresence mode="wait">
           {recordingState !== "preview" ? (
             <motion.video
@@ -289,176 +315,278 @@ const Record = () => {
           )}
         </AnimatePresence>
 
-        {/* Real-time Visual AR Filter Overlay */}
+        {/* AR Filter Overlay - Centered Text */}
         <AnimatePresence>
           {selectedFilter && recordingState !== "preview" && (
             <motion.div 
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="absolute inset-0 flex flex-col items-center justify-center pb-32 pointer-events-none z-20"
+              initial={{ opacity: 0, y: 20, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              transition={{ type: "spring", stiffness: 300, damping: 20 }}
+              className="absolute inset-0 flex flex-col items-center justify-center pb-40 pointer-events-none z-20"
             >
-              <div className="bg-black/10 backdrop-blur-[2px] p-8 rounded-[3rem] border border-white/5 flex flex-col items-center">
-                <p className="text-white/80 text-lg font-black tracking-[0.3em] uppercase drop-shadow-2xl mb-4">
-                  {getLensConfig(selectedFilter).line1}
-                </p>
-                <h2
-                  className="text-6xl font-display font-black text-center leading-none drop-shadow-[0_10px_30px_rgba(0,0,0,0.8)] px-8"
-                  style={{ color: getLensConfig(selectedFilter).color }}
-                >
-                  {getLensConfig(selectedFilter).line2.split('\n').map((line, i) => (
-                    <span key={i} className="block">{line}</span>
-                  ))}
-                </h2>
-                {getLensConfig(selectedFilter).tagline && (
-                  <div className="mt-8 flex items-center gap-2 bg-white/10 backdrop-blur-xl px-4 py-2 rounded-full border border-white/20">
-                    <Sparkles className="w-4 h-4 text-primary" />
-                    <span className="text-white text-[10px] font-black tracking-widest uppercase">
-                      {getLensConfig(selectedFilter).tagline}
-                    </span>
-                  </div>
-                )}
+              <div className="relative">
+                {/* Glow Effect */}
+                <div className="absolute -inset-8 bg-gradient-radial from-white/10 to-transparent rounded-full blur-3xl" />
+                
+                {/* Text Container */}
+                <div className="relative bg-black/20 backdrop-blur-sm p-8 rounded-3xl border border-white/10 flex flex-col items-center">
+                  <p className="text-white/70 text-sm font-black tracking-[0.3em] uppercase drop-shadow-xl mb-3">
+                    {getLensConfig(selectedFilter).line1}
+                  </p>
+                  <h2
+                    className="text-7xl font-display font-black text-center leading-none drop-shadow-[0_10px_30px_rgba(0,0,0,0.8)] px-4"
+                    style={{ 
+                      color: getLensConfig(selectedFilter).color,
+                      textShadow: `0 0 30px ${getLensConfig(selectedFilter).color}40`
+                    }}
+                  >
+                    {getLensConfig(selectedFilter).line2.split('\n').map((line, i) => (
+                      <span key={i} className="block">{line}</span>
+                    ))}
+                  </h2>
+                  {getLensConfig(selectedFilter).tagline && (
+                    <motion.div 
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.2 }}
+                      className="mt-6 flex items-center gap-2 bg-white/15 backdrop-blur-xl px-4 py-2 rounded-full border border-white/20"
+                    >
+                      <Sparkles className="w-4 h-4 text-yellow-300" />
+                      <span className="text-white text-[10px] font-black tracking-widest uppercase">
+                        {getLensConfig(selectedFilter).tagline}
+                      </span>
+                    </motion.div>
+                  )}
+                </div>
               </div>
             </motion.div>
           )}
         </AnimatePresence>
       </div>
 
-      {/* Bottom UI - Snapchat Style Carousel */}
-      <div className="absolute bottom-0 left-0 right-0 z-40 pb-12 pt-24 bg-gradient-to-t from-black via-black/60 to-transparent">
+      {/* ═══════════════════════════════════════════════════════════════
+          BOTTOM ACTION BAR - Snapchat Style (Floating buttons)
+          ═══════════════════════════════════════════════════════════════ */}
+      <div className="absolute bottom-0 left-0 right-0 z-40 pb-20 pt-32 bg-gradient-to-t from-black/80 via-black/40 to-transparent">
         
-        {/* Filter Carousel */}
+        {/* Filter Carousel - When IDLE */}
         {recordingState === "idle" && (
-          <div className="relative mb-10">
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="relative mb-8 px-4"
+          >
             <div
               ref={filterScrollRef}
-              className="flex overflow-x-auto gap-6 no-scrollbar px-[calc(50%-44px)] items-center snap-x snap-mandatory py-4"
+              className="flex overflow-x-auto gap-5 no-scrollbar px-[calc(50%-44px)] items-center snap-x snap-mandatory py-2"
               style={{ scrollBehavior: "smooth" }}
             >
               {AI_FILTERS.map((filter) => {
                 const cfg = getLensConfig(filter);
                 const isSelected = selectedFilter.id === filter.id;
                 return (
-                  <button
+                  <motion.button
                     key={filter.id}
+                    whileTap={{ scale: 0.9 }}
                     onClick={() => setSelectedFilter(filter)}
-                    className={`flex-shrink-0 flex flex-col items-center gap-3 transition-all duration-500 snap-center ${
-                      isSelected ? "scale-125 z-10" : "scale-90 opacity-40 grayscale"
-                    }`}
+                    className="flex-shrink-0 flex flex-col items-center gap-2 snap-center transition-all duration-300"
                   >
-                    <div
-                      className={`rounded-full border-[4px] flex items-center justify-center transition-all duration-500 ${
-                        isSelected ? "w-22 h-22 border-white shadow-[0_0_30px_rgba(255,255,255,0.6)]" : "w-16 h-16 border-white/20"
+                    {/* Filter Icon Circle */}
+                    <motion.div
+                      animate={{ scale: isSelected ? 1.15 : 0.95 }}
+                      className={`rounded-full border-[3px] flex items-center justify-center transition-all duration-300 ${
+                        isSelected 
+                          ? 'w-20 h-20 border-white shadow-[0_0_25px_rgba(255,255,255,0.4)]' 
+                          : 'w-16 h-16 border-white/30 opacity-60'
                       }`}
                       style={{
-                        backgroundColor: isSelected ? `${cfg.color}33` : "rgba(255,255,255,0.05)",
-                        borderColor: isSelected ? "#fff" : "rgba(255,255,255,0.2)",
+                        backgroundColor: isSelected ? `${cfg.color}30` : "rgba(255,255,255,0.08)",
+                        borderColor: isSelected ? "#fff" : "rgba(255,255,255,0.25)",
                       }}
                     >
                       <filter.icon
-                        className={isSelected ? "w-11 h-11" : "w-8 h-8"}
-                        style={{ color: isSelected ? cfg.color : "#fff" }}
+                        className={isSelected ? "w-10 h-10" : "w-7 h-7"}
+                        style={{ color: isSelected ? cfg.color : "#fff", opacity: isSelected ? 1 : 0.7 }}
+                        strokeWidth={isSelected ? 2 : 2.5}
                       />
-                    </div>
-                    <span className={`text-[9px] font-black tracking-[0.2em] uppercase ${isSelected ? "text-white" : "text-white/30"}`}>
+                    </motion.div>
+                    {/* Filter Name */}
+                    <span className={`text-[8px] font-black tracking-[0.15em] uppercase transition-all duration-300 ${
+                      isSelected ? "text-white" : "text-white/40"
+                    }`}>
                       {filter.shortName}
                     </span>
-                  </button>
+                  </motion.button>
                 );
               })}
             </div>
-          </div>
+          </motion.div>
         )}
 
-        {/* Action Controls */}
-        <div className="flex justify-center items-center h-28 px-10">
-          <div className="flex-1 flex justify-center">
-             {recordingState === "idle" && (
-                <button 
-                  onClick={toggleCamera}
-                  title="Toggle camera (front/back)"
-                  className="w-12 h-12 rounded-full bg-white/10 backdrop-blur-xl border border-white/20 flex items-center justify-center text-white hover:bg-white/20 transition-all hover:scale-110 active:scale-95"
-                >
-                  <Camera className="w-6 h-6" />
-                </button>
-              )}
-           </div>
+        {/* Main Control Buttons */}
+        <div className="flex justify-center items-center gap-6 px-4">
+          
+          {/* LEFT: Camera Toggle (When IDLE) */}
+          {recordingState === "idle" && (
+            <motion.button 
+              whileTap={{ scale: 0.85 }}
+              whileHover={{ scale: 1.05 }}
+              onClick={toggleCamera}
+              title="Switch camera (front/back)"
+              className="relative group flex items-center justify-center w-14 h-14 rounded-full bg-white/15 backdrop-blur-lg border-2 border-white/30 hover:bg-white/25 hover:border-white/50 transition-all duration-200 active:scale-75 shadow-[0_8px_32px_rgba(255,255,255,0.1)]"
+            >
+              <SnapIcon icon={Camera} size={24} />
+              <motion.div 
+                className="absolute inset-0 rounded-full border-2 border-white/0 group-active:border-white/30"
+                animate={{ scale: 1.2 }}
+                transition={{ duration: 0.3 }}
+              />
+            </motion.button>
+          )}
 
-          <div className="flex-shrink-0 mx-8">
+          {recordingState === "preview" && <div className="w-14" />}
+
+          {/* CENTER: Main Record/Stop Button (HUGE) */}
+          <div className="relative flex flex-col items-center gap-3">
             {recordingState === "idle" && (
-              <button
-                onClick={startRecording}
-                className="group relative w-24 h-24 flex items-center justify-center"
-              >
-                <div className="absolute inset-0 rounded-full border-[8px] border-white/30 group-active:scale-110 transition-transform duration-300" />
-                <div className="w-20 h-20 rounded-full bg-white shadow-[0_0_40px_rgba(255,255,255,0.4)] group-active:scale-90 transition-transform duration-300" />
-                <div className="absolute -top-12 left-1/2 -translate-x-1/2 bg-primary text-[10px] font-black text-white px-3 py-1 rounded-full whitespace-nowrap animate-bounce shadow-lg">
-                  HOLD TO RECORD
-                </div>
-              </button>
+              <>
+                <motion.button
+                  onMouseDown={startRecording}
+                  onTouchStart={startRecording}
+                  className="group relative w-28 h-28 flex items-center justify-center active:scale-75 transition-transform duration-150"
+                  title="Hold to record"
+                >
+                  {/* Outer Ring */}
+                  <motion.div 
+                    animate={{ scale: [1, 1.1, 1] }}
+                    transition={{ duration: 2, repeat: Infinity }}
+                    className="absolute inset-0 rounded-full border-[4px] border-white/20" 
+                  />
+                  
+                  {/* Center White Button */}
+                  <motion.div 
+                    className="relative w-24 h-24 rounded-full bg-white shadow-[0_0_50px_rgba(255,255,255,0.3)]"
+                    whileHover={{ scale: 1.05, boxShadow: "0 0 60px rgba(255,255,255,0.4)" }}
+                    whileTap={{ scale: 0.9, boxShadow: "0 0 30px rgba(255,255,255,0.2)" }}
+                  />
+                  
+                  {/* Tooltip */}
+                  <motion.div 
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="absolute -top-14 bg-black/60 backdrop-blur-sm text-white text-[10px] font-black px-4 py-2 rounded-full whitespace-nowrap border border-white/20"
+                  >
+                    HOLD TO RECORD
+                  </motion.div>
+                </motion.button>
+              </>
             )}
 
             {recordingState === "recording" && (
-              <button
-                onClick={stopRecording}
-                className="relative w-28 h-28 flex items-center justify-center"
+              <motion.button
+                onMouseUp={stopRecording}
+                onTouchEnd={stopRecording}
+                className="relative w-32 h-32 flex items-center justify-center"
+                title="Tap to stop"
               >
-                <div className="absolute inset-0 rounded-full border-[8px] border-red-600 animate-ping opacity-30" />
-                <div className="absolute inset-0 rounded-full border-[8px] border-red-600" />
-                <div className="w-12 h-12 rounded-2xl bg-red-600 shadow-[0_0_40px_rgba(220,38,38,0.5)]" />
-              </button>
+                {/* Pulsing Outer Ring */}
+                <motion.div 
+                  animate={{ scale: [1, 1.3], opacity: [1, 0] }}
+                  transition={{ duration: 1.5, repeat: Infinity }}
+                  className="absolute inset-0 rounded-full border-[4px] border-red-600/60" 
+                />
+                
+                {/* Static Border */}
+                <motion.div 
+                  className="absolute inset-0 rounded-full border-[4px] border-red-600"
+                />
+                
+                {/* Stop Square */}
+                <motion.div 
+                  animate={{ scale: [1, 1.1, 1] }}
+                  transition={{ duration: 0.5, repeat: Infinity }}
+                  className="w-12 h-12 rounded-lg bg-red-600 shadow-[0_0_40px_rgba(220,38,38,0.6)]" 
+                />
+              </motion.button>
             )}
 
             {recordingState === "preview" && (
-              <div className="flex items-center gap-10 bg-white/10 backdrop-blur-3xl px-10 py-5 rounded-[2.5rem] border border-white/20 shadow-2xl">
-                <button 
-                  onClick={resetRecording} 
-                  className="flex flex-col items-center gap-2 text-white hover:text-red-400 transition-colors group"
+              <div className="flex items-center gap-12 bg-black/40 backdrop-blur-xl px-8 py-6 rounded-[2rem] border border-white/20 shadow-2xl">
+                
+                {/* Retake */}
+                <motion.button 
+                  whileTap={{ scale: 0.85 }}
+                  onClick={resetRecording}
                   title="Retake video"
+                  className="flex flex-col items-center gap-2 text-white hover:text-red-400 transition-colors group"
                 >
-                  <div className="p-3 bg-white/10 rounded-full group-hover:bg-red-400/20 transition-colors">
-                    <RotateCcw className="w-8 h-8" />
-                  </div>
-                  <span className="text-[10px] font-black uppercase tracking-widest">Retake</span>
-                </button>
-                <div className="w-px h-12 bg-white/20" />
-                <button 
-                  onClick={handleShare} 
-                  className="flex flex-col items-center gap-2 text-white hover:text-blue-400 transition-colors group"
+                  <motion.div 
+                    whileHover={{ scale: 1.1 }}
+                    className="p-3 bg-white/10 rounded-full group-hover:bg-red-500/20 transition-all border border-white/20 group-hover:border-red-400/40"
+                  >
+                    <SnapIcon icon={RotateCcw} size={24} />
+                  </motion.div>
+                  <span className="text-[9px] font-black uppercase tracking-wider">Retake</span>
+                </motion.button>
+
+                <div className="w-px h-14 bg-white/20" />
+
+                {/* Share */}
+                <motion.button 
+                  whileTap={{ scale: 0.85 }}
+                  onClick={handleShare}
                   title="Share video"
+                  className="flex flex-col items-center gap-2 text-white hover:text-blue-400 transition-colors group"
                 >
-                  <div className="p-3 bg-white/10 rounded-full group-hover:bg-blue-400/20 transition-colors">
-                    <Share2 className="w-8 h-8" />
-                  </div>
-                  <span className="text-[10px] font-black uppercase tracking-widest">Share</span>
-                </button>
-                <div className="w-px h-12 bg-white/20" />
-                <button 
-                  onClick={handleSubmit} 
-                  className="flex flex-col items-center gap-2 text-white hover:text-green-400 transition-colors group"
+                  <motion.div 
+                    whileHover={{ scale: 1.1 }}
+                    className="p-3 bg-white/10 rounded-full group-hover:bg-blue-500/20 transition-all border border-white/20 group-hover:border-blue-400/40"
+                  >
+                    <SnapIcon icon={Share2} size={24} />
+                  </motion.div>
+                  <span className="text-[9px] font-black uppercase tracking-wider">Share</span>
+                </motion.button>
+
+                <div className="w-px h-14 bg-white/20" />
+
+                {/* Submit */}
+                <motion.button 
+                  whileTap={{ scale: 0.85 }}
+                  onClick={handleSubmit}
                   title="Submit video"
+                  className="flex flex-col items-center gap-2 text-white hover:text-green-400 transition-colors group"
                 >
-                  <div className="p-3 bg-white/10 rounded-full group-hover:bg-green-400/20 transition-colors">
-                    <Check className="w-10 h-10" />
-                  </div>
-                  <span className="text-[10px] font-black uppercase tracking-widest">Submit</span>
-                </button>
+                  <motion.div 
+                    whileHover={{ scale: 1.1 }}
+                    className="p-3 bg-white/10 rounded-full group-hover:bg-green-500/20 transition-all border border-white/20 group-hover:border-green-400/40"
+                  >
+                    <SnapIcon icon={Check} size={24} />
+                  </motion.div>
+                  <span className="text-[9px] font-black uppercase tracking-wider">Submit</span>
+                </motion.button>
               </div>
             )}
 
             {recordingState === "uploading" && (
-              <div className="flex flex-col items-center gap-4">
-                <div className="h-12 w-12 border-[4px] border-white/20 border-t-primary rounded-full animate-spin" />
-                <span className="text-xs font-black text-white tracking-[0.3em] uppercase animate-pulse">Processing...</span>
-              </div>
+              <motion.div 
+                className="flex flex-col items-center gap-4"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+              >
+                <motion.div 
+                  animate={{ rotate: 360 }}
+                  transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
+                  className="h-16 w-16 border-[4px] border-white/20 border-t-white/80 rounded-full" 
+                />
+                <span className="text-xs font-black text-white/80 tracking-widest uppercase animate-pulse">Processing...</span>
+              </motion.div>
             )}
           </div>
 
-          <div className="flex-1 flex justify-center">
-            {recordingState === "preview" && (
-               <div />
-             )}
-           </div>
+          {/* RIGHT: Placeholder (for symmetry) */}
+          {recordingState === "idle" && <div className="w-14" />}
+          {recordingState === "preview" && <div className="w-14" />}
         </div>
       </div>
     </div>
