@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { Mail, Lock, User, Sparkles, ArrowLeft, Chrome, ExternalLink, Linkedin } from "lucide-react";
+import { Mail, Lock, User, Sparkles, ArrowLeft, Chrome, ExternalLink, Linkedin, Apple } from "lucide-react";
 import { z } from "zod";
 
 const emailSchema = z.string().email("Please enter a valid email address");
@@ -21,6 +21,7 @@ const Auth = () => {
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [linkedinLoading, setLinkedinLoading] = useState(false);
+  const [appleLoading, setAppleLoading] = useState(false);
   const [showInAppAuth, setShowInAppAuth] = useState(false);
   
   const { user } = useAuth();
@@ -107,6 +108,23 @@ const Auth = () => {
     }
   };
 
+  const handleAppleAuth = async () => {
+    setAppleLoading(true);
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "apple",
+        options: { 
+          redirectTo: `${window.location.origin}/dashboard`,
+          skipBrowserRedirect: false
+        },
+      });
+      if (error) throw error;
+    } catch (error: any) {
+      toast({ title: "Apple Auth Error", description: error.message, variant: "destructive" });
+      setAppleLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <div className="fixed inset-0 bg-pattern pointer-events-none opacity-20" />
@@ -141,12 +159,15 @@ const Auth = () => {
                 <h1 className="font-display text-2xl font-bold mb-2">{isSignUp ? "Create Account" : "Welcome Back"}</h1>
                 <p className="text-muted-foreground text-xs mb-6">Quick access via social accounts</p>
                 
-                <div className="grid grid-cols-2 gap-3 mb-6">
-                  <Button variant="outline" className="h-12 gap-2 rounded-xl border-border hover:bg-muted" onClick={handleGoogleAuth} disabled={googleLoading || linkedinLoading}>
+                <div className="grid grid-cols-3 gap-3 mb-6">
+                  <Button variant="outline" className="h-12 gap-1 rounded-xl border-border hover:bg-muted text-xs" onClick={handleGoogleAuth} disabled={googleLoading || linkedinLoading || appleLoading}>
                     <Chrome className="h-4 w-4 text-red-500" /> Google
                   </Button>
-                  <Button variant="outline" className="h-12 gap-2 rounded-xl border-border hover:bg-muted" onClick={handleLinkedInAuth} disabled={googleLoading || linkedinLoading}>
+                  <Button variant="outline" className="h-12 gap-1 rounded-xl border-border hover:bg-muted text-xs" onClick={handleLinkedInAuth} disabled={googleLoading || linkedinLoading || appleLoading}>
                     <Linkedin className="h-4 w-4 text-blue-600" /> LinkedIn
+                  </Button>
+                  <Button variant="outline" className="h-12 gap-1 rounded-xl border-border hover:bg-muted text-xs" onClick={handleAppleAuth} disabled={googleLoading || linkedinLoading || appleLoading}>
+                    <Apple className="h-4 w-4" /> Apple
                   </Button>
                 </div>
 
