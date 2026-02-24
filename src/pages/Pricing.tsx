@@ -11,6 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import {
   ArrowLeft,
+  Calendar,
   Check,
   Zap,
   Crown,
