@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { RotateCcw, Check, ArrowLeft, Zap, Sparkles, Camera, Video, Share2 } from "lucide-react";
+import { RotateCcw, Check, ArrowLeft, Zap, Sparkles, Camera, Video, Share2, Lightbulb, Flame } from "lucide-react";
 import { AI_FILTERS, AIFilter } from "@/lib/filters";
 import { getLensConfig, CanvasVideoRecorder } from "@/lib/canvas-recorder";
 import { awardCredits, CREDIT_COSTS } from "@/lib/credits";
@@ -8,6 +8,16 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
+
+// Snapchat-style icon wrapper component
+const SnapIcon = ({ icon: Icon, size = 24, color = "white", filled = false }: { icon: any; size?: number; color?: string; filled?: boolean }) => (
+  <Icon 
+    size={size} 
+    strokeWidth={filled ? 0 : 3} 
+    style={{ color }} 
+    className={filled ? "fill-current" : ""}
+  />
+);
 
 type RecordingState = "idle" | "recording" | "preview" | "uploading";
 
