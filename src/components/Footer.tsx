@@ -29,10 +29,10 @@ export const Footer = () => {
     {
       title: "Events",
       links: [
-        { label: "2026 Roadmap", href: "https://dsconsortium.com/events", external: true },
-        { label: "Applied AI Bootcamp", href: "https://dsconsortium.com/events", external: true },
-        { label: "AI Ethics & Governance", href: "https://dsconsortium.com/events", external: true },
-        { label: "Leadership Summit", href: "https://dsconsortium.com/events", external: true },
+        { label: "2026 Roadmap", href: "https://legroupeds.com/events", external: true },
+        { label: "Applied AI Bootcamp", href: "https://legroupeds.com/events", external: true },
+        { label: "AI Ethics & Governance", href: "https://legroupeds.com/events", external: true },
+        { label: "Leadership Summit", href: "https://legroupeds.com/events", external: true },
       ],
     },
     {
