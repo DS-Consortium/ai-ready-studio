@@ -173,12 +173,11 @@ export const EventsSection = () => {
                 </motion.div>
               ))}
             </div>
-        </div>
-      </section>
-
       {/* Modal – conditionally rendered only when needed */}
       {calendarOpen && (
         <DownloadCalendar open={calendarOpen} onOpenChange={setCalendarOpen} />
+        </div>
+      </section>
       )}
     </>
   );
