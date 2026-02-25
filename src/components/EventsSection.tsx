@@ -75,7 +75,47 @@ export const EventsSection = () => {
       <section className="py-20 md:py-32">
         <div className="container">
           <div className="grid gap-12 lg:grid-cols-2 lg:gap-16">
-            {/* Left column - Text content */}
+             {/* Journey Section */}
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          className="mt-32 relative group"
+        >
+          <div className="absolute inset-0 bg-gradient-to-r from-primary/10 to-blue-600/10 rounded-[3rem] blur-2xl transition-all group-hover:blur-3xl" />
+          <div className="relative p-12 md:p-16 rounded-[3rem] bg-card border border-border shadow-2xl flex flex-col md:flex-row items-center gap-12 overflow-hidden">
+            <div className="flex-1">
+              <h3 className="text-3xl md:text-4xl font-display font-black mb-6">Your AI Readiness Journey Doesn't End Here</h3>
+              <p className="text-lg text-muted-foreground mb-10 max-w-xl">
+                Connect to our curated seminars and explore the Knowledge Lab archive to deepen your expertise.
+              </p>
+              <div className="flex flex-wrap gap-4">
+                <Button size="lg" asChild className="rounded-2xl h-14 px-8 font-bold gap-2">
+                  <a href="https://legroupeds.com/events" target="_blank" rel="noopener noreferrer">
+                         View Full 2026 Roadmap <ArrowRight className="h-4 w-4" />
+                  </a>
+                </Button>
+                <Button variant="outline" size="lg" asChild className="rounded-2xl h-14 px-8 font-bold">
+                  <a href="https://legroupeds.com/knowledge-library" target="_blank" rel="noopener noreferrer">
+                    Knowledge Lab Archive
+                  </a>
+                </Button>
+            <Button
+                  variant="outline"
+                  size="lg"
+                  className="gap-2"
+                  onClick={() => setCalendarOpen(true)}
+                >
+                  <Download className="h-4 w-4" />
+                  Download Calendar
+                </Button>  </div>
+            </div>
+            <div className="w-full md:w-1/3 aspect-square bg-muted rounded-[2rem] overflow-hidden border border-border flex items-center justify-center relative">
+               <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-transparent" />
+               <Calendar className="h-32 w-32 text-primary/40" />
+            </div>
+          </div>
+        </motion.div>{/* Left column - Text content */}
             <motion.div
               initial={{ opacity: 0, x: -20 }}
               whileInView={{ opacity: 1, x: 0 }}
