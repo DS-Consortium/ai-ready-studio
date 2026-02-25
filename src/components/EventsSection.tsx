@@ -114,13 +114,7 @@ export const EventsSection = () => {
                 </Button> 
            </div>
             </div>
-            <div className="w-full md:w-1/3 aspect-square bg-muted rounded-[2rem] overflow-hidden border border-border flex items-center justify-center relative">
-               <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-transparent" />
-               <Calendar className="h-32 w-32 text-primary/40" />
-            </div>
-          </div>
-        </motion.div>
-            {/* Right column - Events cards */}
+          {/* Right column - Events cards */}
             <div className="space-y-4">
               {upcomingEvents.map((event, index) => (
                 <motion.div
@@ -178,7 +172,9 @@ export const EventsSection = () => {
                   </div>
                 </motion.div>
               ))}
-            </div>
+            </div>         </div>
+          </div>
+        </motion.div>
           </div>
         </div>
       </section>
@@ -189,4 +185,4 @@ export const EventsSection = () => {
       )}
     </>
   );
-};;
+};
