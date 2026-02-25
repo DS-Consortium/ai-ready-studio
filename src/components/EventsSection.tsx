@@ -95,7 +95,7 @@ export const EventsSection = () => {
 
               <div className="mt-8 flex flex-col gap-4 sm:flex-row">
                 <Button variant="hero" size="lg" className="gap-2" asChild>
-                  <a href="https://dsconsortium.com/events" target="_blank" rel="noopener noreferrer">
+                  <a href="https://legroupeds.com/events" target="_blank" rel="noopener noreferrer">
                     View Full 2026 Roadmap
                     <ExternalLink className="h-4 w-4" />
                   </a>

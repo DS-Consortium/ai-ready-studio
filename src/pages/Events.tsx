@@ -81,7 +81,7 @@ const Events = () => {
 
   const handleRegister = async (eventId: string) => {
     // Lead to main website for paid registrations
-    window.open("https://dsconsortium.com/events", "_blank");
+    window.open("https://legroupeds.com/events", "_blank");
     
     // Optionally still record the intent in Supabase
     if (user) {

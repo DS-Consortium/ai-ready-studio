@@ -392,7 +392,7 @@ docker-compose logs backend
 - **API Docs**: See `API_DOCUMENTATION.md`
 - **Frontend Docs**: See `IMPLEMENTATION_SUMMARY.md`
 - **Issue Tracker**: GitHub Issues
-- **Email Support**: support@dsconsortium.com
+- **Email Support**: support@legroupeds.com
 
 ---
 

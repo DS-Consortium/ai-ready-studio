@@ -18,7 +18,7 @@
 
 ### Company Branding
 - [x] Replace "LeGroupeDS" with "DS Consortium" everywhere
-- [x] Update URLs from legroupeds.com → dsconsortium.com
+- [x] Update URLs from legroupeds.com → legroupeds.com
 - [x] Consistent company name in all components
 
 ### Events Alignment

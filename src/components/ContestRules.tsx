@@ -59,7 +59,7 @@ export const ContestRules = ({ open, onOpenChange }: ContestRulesProps) => {
                 3. How to Enter
               </h3>
               <ul className="list-disc pl-5 space-y-2 text-muted-foreground">
-                <li>Register or Sign In on <strong>dsconsortium.com</strong>.</li>
+                <li>Register or Sign In on <strong>legroupeds.com</strong>.</li>
                 <li>Choose one of the 8 <strong>DSC Filters</strong> that represents your AI identity.</li>
                 <li>Record a video declaration (max 60 seconds) following the provided prompt.</li>
                 <li>Submit your video to the public gallery.</li>
@@ -122,7 +122,7 @@ export const ContestRules = ({ open, onOpenChange }: ContestRulesProps) => {
               <h3 className="font-bold text-lg mb-3">9. Privacy</h3>
               <p className="text-muted-foreground leading-relaxed">
                 Personal data collected during registration will be handled in accordance with DS Consortium's
-                Privacy Policy available at <strong>dsconsortium.com/privacy</strong>. Participants may opt out
+                Privacy Policy available at <strong>legroupeds.com/privacy</strong>. Participants may opt out
                 of marketing communications at any time.
               </p>
             </section>
