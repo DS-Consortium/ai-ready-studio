@@ -323,167 +323,139 @@ const Dashboard = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="sticky top-0 z-50 border-b border-border bg-background/80 backdrop-blur-lg">
-        <div className="container flex items-center justify-between h-16">
+    <div className="min-h-screen bg-background pb-20">
+      {/* ── Navbar ── */}
+      <nav className="sticky top-0 z-50 border-b border-border bg-background/80 backdrop-blur-lg">
+        <div className="container flex items-center justify-between h-16 px-6">
           <Link to="/" className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-              <span className="text-primary-foreground font-bold text-sm">AI</span>
+            <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
+              <Home className="h-5 w-5 text-white" />
             </div>
-            <span className="font-display font-bold">AI Ready</span>
+            <span className="font-display font-bold text-lg hidden sm:inline-block">AI Ready Studio</span>
           </Link>
-          <div className="flex items-center gap-3">
-            <QRCodeGenerator url={window.location.origin} title="Share App" />
-            <Button variant="ghost" size="icon" asChild>
-              <Link to="/">
-                <Home className="h-5 w-5" />
-              </Link>
-            </Button>
+          <div className="flex items-center gap-4">
             {isAdmin && (
-              <Button variant="ghost" size="icon" asChild>
-                <Link to="/admin">
-                  <Shield className="h-5 w-5" />
+              <Button variant="ghost" size="sm" asChild className="text-muted-foreground hover:text-primary">
+                <Link to="/admin" className="gap-2">
+                  <Shield className="h-4 w-4" />
+                  Admin
                 </Link>
               </Button>
             )}
-            <Button variant="ghost" size="icon" onClick={handleSignOut}>
-              <LogOut className="h-5 w-5" />
+            <Button variant="ghost" size="sm" onClick={handleSignOut} className="text-muted-foreground hover:text-destructive">
+              <LogOut className="h-4 w-4 mr-2" />
+              Sign Out
             </Button>
           </div>
         </div>
-      </header>
+      </nav>
 
-      {/* Main */}
-      <main className="container py-8">
-        {/* Welcome */}
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
-          <h1 className="font-display text-3xl font-bold">
-            Welcome back, {profile?.display_name || user?.email?.split("@")[0]}!
+      <main className="container px-6 py-8">
+        {/* ── Welcome Header ── */}
+        <div className="mb-10">
+          <h1 className="text-3xl md:text-4xl font-display font-black mb-2">
+            Welcome back, <span className="text-primary">{profile?.display_name || user?.email?.split("@")[0] || "Leader"}</span>
           </h1>
-          <p className="text-muted-foreground mt-1">
-            Ready to share your AI declaration with the world?
+          <p className="text-muted-foreground font-medium">
+            Manage your declarations and track your AI readiness journey.
           </p>
-        </motion.div>
+        </div>
 
-        {/* Quick actions */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-8"
-        >
-          <Link to="/record">
-            <div className="group relative overflow-hidden rounded-2xl bg-primary p-6 text-primary-foreground transition-all hover:scale-[1.02]">
-              <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent" />
-              <Plus className="h-8 w-8 mb-3" />
-              <h3 className="font-semibold text-lg">Create Video</h3>
-              <p className="text-sm opacity-80">Record your AI declaration</p>
+        {/* ── Stats Grid ── */}
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-10">
+          {[
+            { icon: Video, label: "My Videos", value: stats.totalVideos, color: "bg-blue-500" },
+            { icon: Heart, label: "Total Votes", value: stats.totalVotes, color: "bg-pink-500" },
+            { icon: Eye, label: "Video Views", value: stats.totalViews, color: "bg-cyan-500" },
+            { icon: Trophy, label: "Global Rank", value: stats.leaderboardRank, color: "bg-amber-500" },
+            { icon: Calendar, label: "Events", value: stats.registeredEvents, color: "bg-green-500" },
+            { icon: Gift, label: "Rewards", value: stats.availableRewards, color: "bg-purple-500" },
+          ].map((item) => (
+            <div key={item.label} className="bg-card border border-border rounded-2xl p-4 shadow-sm">
+              <div className={`w-8 h-8 rounded-lg ${item.color} flex items-center justify-center mb-3`}>
+                <item.icon className="h-4 w-4 text-white" />
+              </div>
+              <p className="text-2xl font-black">{item.value}</p>
+              <p className="text-xs text-muted-foreground font-bold uppercase tracking-wider">{item.label}</p>
             </div>
-          </Link>
-          <Link to="/gallery">
-            <div className="group rounded-2xl border border-border bg-card p-6 transition-all hover:border-primary/50 hover:shadow-lg">
-              <Trophy className="h-8 w-8 mb-3 text-amber-500" />
-              <h3 className="font-semibold text-lg">Leaderboard</h3>
-              <p className="text-sm text-muted-foreground">Rank: #{stats.leaderboardRank}</p>
-            </div>
-          </Link>
-          <Link to="/events">
-            <div className="group rounded-2xl border border-border bg-card p-6 transition-all hover:border-primary/50 hover:shadow-lg">
-              <Calendar className="h-8 w-8 mb-3 text-blue-500" />
-              <h3 className="font-semibold text-lg">Events</h3>
-              <p className="text-sm text-muted-foreground">{stats.registeredEvents} Registered</p>
-            </div>
-          </Link>
-          <Link to="/rewards">
-            <div className="group rounded-2xl border border-border bg-card p-6 transition-all hover:border-primary/50 hover:shadow-lg">
-              <Gift className="h-8 w-8 mb-3 text-pink-500" />
-              <h3 className="font-semibold text-lg">Rewards</h3>
-              <p className="text-sm text-muted-foreground">{stats.availableRewards} Available</p>
-            </div>
-          </Link>
-        </motion.div>
+          ))}
+        </div>
 
-        {/* Stats */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="grid gap-4 sm:grid-cols-3 mb-8"
-        >
-          <div className="rounded-2xl border border-border bg-card p-6">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
-                <Video className="h-6 w-6 text-primary" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">{stats.totalVideos}</p>
-                <p className="text-sm text-muted-foreground">Videos Created</p>
-              </div>
-            </div>
-          </div>
-          <div className="rounded-2xl border border-border bg-card p-6">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-xl bg-pink-500/10 flex items-center justify-center">
-                <Heart className="h-6 w-6 text-pink-500" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">{stats.totalVotes}</p>
-                <p className="text-sm text-muted-foreground">Total Votes</p>
-              </div>
-            </div>
-          </div>
-          <div className="rounded-2xl border border-border bg-card p-6">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-xl bg-blue-500/10 flex items-center justify-center">
-                <Eye className="h-6 w-6 text-blue-500" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">{stats.totalViews}</p>
-                <p className="text-sm text-muted-foreground">Total Views</p>
-              </div>
-            </div>
-          </div>
-        </motion.div>
-
-        {/* My Videos — inline playback */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
-        >
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="font-display text-xl font-bold">My Videos</h2>
-            <Button variant="outline" size="sm" asChild>
-              <Link to="/record">
-                <Plus className="h-4 w-4 mr-2" />
-                New Video
-              </Link>
-            </Button>
-          </div>
-
-          {videos.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-border bg-muted/30 p-12 text-center">
-              <Video className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-              <h3 className="font-semibold text-lg mb-2">No videos yet</h3>
-              <p className="text-muted-foreground mb-4">
-                Create your first AI declaration video and share it with the world!
-              </p>
-              <Button asChild>
+        <div className="grid lg:grid-cols-3 gap-10">
+          {/* ── My Videos Section ── */}
+          <div className="lg:col-span-2">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-display font-black">My Declarations</h2>
+              <Button asChild size="sm" className="rounded-xl gap-2">
                 <Link to="/record">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Create Your First Video
+                  <Plus className="h-4 w-4" />
+                  New Video
                 </Link>
               </Button>
             </div>
-          ) : (
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {videos.map((video) => (
-                <VideoCard key={video.id} video={video} onDelete={handleDeleteVideo} />
-              ))}
+
+            {videos.length === 0 ? (
+              <div className="bg-muted/30 border-2 border-dashed border-border rounded-3xl p-12 text-center">
+                <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Video className="h-8 w-8 text-muted-foreground" />
+                </div>
+                <h3 className="text-lg font-bold mb-2">No videos yet</h3>
+                <p className="text-muted-foreground mb-6 max-w-xs mx-auto">
+                  Start your journey by recording your first AI readiness declaration.
+                </p>
+                <Button asChild className="rounded-xl">
+                  <Link to="/record">Record My First Video</Link>
+                </Button>
+              </div>
+            ) : (
+              <div className="grid sm:grid-cols-2 gap-6">
+                {videos.map((video) => (
+                  <VideoCard key={video.id} video={video} onDelete={handleDeleteVideo} />
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* ── Sidebar / Actions ── */}
+          <div className="space-y-8">
+            {/* Share Section */}
+            <div className="bg-primary/5 border border-primary/20 rounded-3xl p-8">
+              <h3 className="text-xl font-display font-black mb-4">Invite Others</h3>
+              <p className="text-sm text-muted-foreground mb-6">
+                Share your unique QR code or link to invite colleagues to the AI Readiness movement.
+              </p>
+              <QRCodeGenerator 
+                url={`${window.location.origin}/?ref=${user?.id}`} 
+                title="AI Readiness Challenge"
+              />
             </div>
-          )}
-        </motion.div>
+
+            {/* Quick Links */}
+            <div className="bg-card border border-border rounded-3xl p-8">
+              <h3 className="text-xl font-display font-black mb-6">Quick Actions</h3>
+              <div className="space-y-3">
+                <Button variant="outline" className="w-full justify-start rounded-xl h-12 gap-3" asChild>
+                  <Link to="/gallery">
+                    <Eye className="h-4 w-4 text-primary" />
+                    Browse Community Gallery
+                  </Link>
+                </Button>
+                <Button variant="outline" className="w-full justify-start rounded-xl h-12 gap-3" asChild>
+                  <Link to="/events">
+                    <Calendar className="h-4 w-4 text-primary" />
+                    Register for Seminars
+                  </Link>
+                </Button>
+                <Button variant="outline" className="w-full justify-start rounded-xl h-12 gap-3" asChild>
+                  <Link to="/rewards">
+                    <Gift className="h-4 w-4 text-primary" />
+                    Claim My Rewards
+                  </Link>
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
       </main>
     </div>
   );
