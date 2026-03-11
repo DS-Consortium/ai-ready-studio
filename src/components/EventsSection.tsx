@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { Calendar, MapPin, ArrowRight, ExternalLink, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DownloadCalendar } from "@/components/DownloadCalendar";
+import { useNavigate } from "react-router-dom";
 
 const upcomingEvents = [
   {
@@ -68,6 +69,7 @@ const upcomingEvents = [
 ];
 
 export const EventsSection = () => {
+  const navigate = useNavigate();
   const [calendarOpen, setCalendarOpen] = useState(false);
 
   return (
@@ -155,17 +157,11 @@ export const EventsSection = () => {
                       variant="ghost"
                       size="sm"
                       className="group/btn self-start sm:self-center"
-                      asChild
+                      onClick={() => navigate(`/events?eventId=${event.id}`)}
+                      aria-label={`Learn more about ${event.title}`}
                     >
-                      <a
-                        href={event.eventUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        aria-label={`Learn more about ${event.title}`}
-                      >
-                        Learn More
-                        <ArrowRight className="h-4 w-4 transition-transform group-hover/btn:translate-x-1" />
-                      </a>
+                      Learn More
+                      <ArrowRight className="h-4 w-4 transition-transform group-hover/btn:translate-x-1" />
                     </Button>
                   </div>
                 </motion.div>
