@@ -3,9 +3,13 @@ import { Play, Pause, X, Sparkles, Video, Share2, Volume2, VolumeX } from 'lucid
 import { Button } from '@/components/ui/button';
 import { motion, AnimatePresence } from 'framer-motion';
 
-// The tutorial video URL. Replace this with the actual hosted video URL when available.
-// Currently set to null to show the animated placeholder state.
-const TUTORIAL_VIDEO_URL: string | null = null;
+// The tutorial video URL. Can be set via environment variable VITE_TUTORIAL_VIDEO_URL
+// or imported from a CDN. Currently set to null to show the animated placeholder state.
+// To enable the tutorial video:
+// 1. Generate or upload the video to a CDN (e.g., Vimeo, YouTube, S3)
+// 2. Set VITE_TUTORIAL_VIDEO_URL environment variable
+// 3. Or update this constant directly with the video URL
+const TUTORIAL_VIDEO_URL: string | null = import.meta.env.VITE_TUTORIAL_VIDEO_URL || null;
 
 const steps = [
   {
