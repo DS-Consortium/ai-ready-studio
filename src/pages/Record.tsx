@@ -4,6 +4,7 @@ import { RotateCcw, Check, ArrowLeft, Zap, Sparkles, Camera, Share2, Volume2, Mi
 import { AI_FILTERS, AIFilter } from "@/lib/filters";
 import { getLensConfig, CanvasVideoRecorder } from "@/lib/canvas-recorder";
 import { awardCredits, CREDIT_COSTS } from "@/lib/credits";
+import { moderateVideo, moderateLocally, pollModerationStatus } from "@/lib/moderation";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { motion, AnimatePresence } from "framer-motion";
@@ -19,7 +20,7 @@ const SnapIcon = ({ icon: Icon, size = 24, color = "white", filled = false }: { 
   />
 );
 
-type RecordingState = "idle" | "recording" | "preview" | "uploading";
+type RecordingState = "idle" | "recording" | "preview" | "uploading" | "moderating";
 
 // Text-to-speech helper
 const synthesizeDeclaration = async (filterName: string, onComplete?: () => void): Promise<Blob | null> => {
@@ -211,16 +212,56 @@ const Record = () => {
 
       const { data: { publicUrl } } = supabase.storage.from("videos").getPublicUrl(fileName);
 
-      const { error: insertError } = await supabase.from("videos").insert({
+      const { data: videoData, error: insertError } = await supabase.from("videos").insert({
         user_id: user.id,
         title: `${selectedFilter.shortName} Declaration`,
         video_url: publicUrl,
         filter_id: selectedFilter.id,
         duration_seconds: duration,
         is_submitted: true,
-      });
+      }).select().single();
 
       if (insertError) throw insertError;
+
+      // Trigger moderation
+      setRecordingState("moderating");
+      toast({ 
+        title: "Video submitted!", 
+        description: "Your declaration is being reviewed for content policy compliance..." 
+      });
+
+      // Try server-side moderation first, fall back to local
+      let moderationResult;
+      try {
+        moderationResult = await moderateVideo(videoData.id);
+      } catch (err) {
+        console.warn('Server moderation failed, using local moderation:', err);
+        moderationResult = moderateLocally(videoData.title);
+      }
+
+      if (moderationResult.status === "flagged") {
+        // Update video as flagged
+        await supabase.from("videos").update({
+          is_approved: false,
+          description: moderationResult.reason || "Content policy violation"
+        }).eq("id", videoData.id);
+
+        toast({ 
+          title: "Content Review", 
+          description: moderationResult.reason || "Your video has been flagged for review. Our team will check it shortly.",
+          variant: "destructive" 
+        });
+      } else {
+        // Auto-approve if passed moderation
+        await supabase.from("videos").update({
+          is_approved: true
+        }).eq("id", videoData.id);
+
+        toast({ 
+          title: "Video approved!", 
+          description: "Your declaration has been approved and is now live!" 
+        });
+      }
 
       // Award credits for completing declaration
       try {
@@ -229,16 +270,8 @@ const Record = () => {
           CREDIT_COSTS.DECLARATION_COMPLETION,
           'Completed declaration video'
         );
-        toast({ 
-          title: "Video submitted!", 
-          description: `Your declaration has been submitted for review. You earned ${CREDIT_COSTS.DECLARATION_COMPLETION} credits!` 
-        });
       } catch (creditErr) {
         console.warn('Could not award credits:', creditErr);
-        toast({ 
-          title: "Video submitted!", 
-          description: "Your declaration has been submitted for review." 
-        });
       }
 
       navigate("/dashboard");
