@@ -283,6 +283,25 @@ const Admin = () => {
     }
   };
 
+  // Returns a cryptographically secure random integer in the range [0, max)
+  const getSecureRandomInt = (max: number): number => {
+    if (max <= 0) {
+      return 0;
+    }
+
+    const array = new Uint32Array(1);
+    const maxUint32 = 0xffffffff;
+    const limit = Math.floor((maxUint32 + 1) / max) * max;
+
+    while (true) {
+      window.crypto.getRandomValues(array);
+      const randomValue = array[0];
+      if (randomValue < limit) {
+        return randomValue % max;
+      }
+    }
+  };
+
   const runPrizeDraw = async (drawId: string) => {
     // Get all entries for this draw
     const { data: entries } = await supabase
@@ -295,8 +314,8 @@ const Admin = () => {
       return;
     }
 
-    // Pick random winner
-    const winnerIndex = Math.floor(Math.random() * entries.length);
+    // Pick random winner using cryptographically secure randomness
+    const winnerIndex = getSecureRandomInt(entries.length);
     const winnerId = entries[winnerIndex].user_id;
 
     // Update draw with winner
