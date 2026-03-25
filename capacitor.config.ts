@@ -1,7 +1,7 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.dsconsortium.aiready',
+  appId: 'com.dsconsortium.aireadystudio',
   appName: 'I Am AI Ready',
   webDir: 'dist',
   bundledWebRuntime: false,

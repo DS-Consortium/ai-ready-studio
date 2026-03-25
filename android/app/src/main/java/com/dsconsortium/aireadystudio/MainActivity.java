@@ -1,4 +1,4 @@
-package com.dsconsortium.aiready;
+package com.dsconsortium.aireadystudio;
 
 import com.getcapacitor.BridgeActivity;
 
