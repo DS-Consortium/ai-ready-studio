@@ -3,9 +3,13 @@
  *
  * Implements Canvas-based video recording that bakes AR text lens filters
  * directly into the recorded video stream using MediaRecorder and Canvas API.
+ * 
+ * Optimized for Snapchat-like real-time preview and capture.
  */
 
 import { AIFilter } from "@/lib/filters";
+import { FaceTracker } from './face-tracking';
+import { drawFaceHalo, drawFaceScan } from './ar-elements';
 
 export interface LensConfig {
   line1: string;
@@ -53,6 +57,8 @@ export const drawARTextLens = (
 ) => {
   const cfg = getLensConfig(filter);
 
+  ctx.save();
+  
   // Clear shadow for background
   ctx.shadowBlur = 0;
   
@@ -100,6 +106,8 @@ export const drawARTextLens = (
     ctx.textBaseline = "middle";
     ctx.fillText(cfg.tagline, canvasWidth / 2, canvasHeight * 0.92);
   }
+
+  ctx.restore();
 };
 
 /**
@@ -115,28 +123,37 @@ export class CanvasVideoRecorder {
   private videoEl: HTMLVideoElement;
   private canvasStream: MediaStream | null = null;
   private filter: AIFilter;
+  private facingMode: "user" | "environment";
+  private faceTracker: FaceTracker | null = null;
 
   constructor(
     stream: MediaStream,
     filter: AIFilter,
+    facingMode: "user" | "environment" = "user",
     canvasWidth: number = 1080,
     canvasHeight: number = 1920
   ) {
     this.stream = stream;
     this.filter = filter;
+    this.facingMode = facingMode;
 
     // Create a hidden video element to draw frames from
     this.videoEl = document.createElement("video");
     this.videoEl.srcObject = stream;
     this.videoEl.muted = true;
     this.videoEl.playsInline = true;
-    this.videoEl.play();
+    this.videoEl.setAttribute('autoplay', 'true');
+    this.videoEl.play().catch(err => console.error("Video play error:", err));
 
     // Create canvas
     this.canvas = document.createElement("canvas");
     this.canvas.width = canvasWidth;
     this.canvas.height = canvasHeight;
-    this.ctx = this.canvas.getContext("2d", { alpha: false })!;
+    this.ctx = this.canvas.getContext("2d", { alpha: false, desynchronized: true })!;
+    
+    // Initialize face tracking
+    this.faceTracker = new FaceTracker(this.videoEl);
+    this.faceTracker.initialize();
   }
 
   /**
@@ -161,39 +178,89 @@ export class CanvasVideoRecorder {
       console.warn('Could not add audio tracks:', err);
     }
 
-    const mimeType = MediaRecorder.isTypeSupported("video/webm;codecs=vp9")
+    // Determine supported mime type
+    const mimeType = MediaRecorder.isTypeSupported("video/mp4")
+      ? "video/mp4"
+      : MediaRecorder.isTypeSupported("video/webm;codecs=vp9")
       ? "video/webm;codecs=vp9"
       : MediaRecorder.isTypeSupported("video/webm")
       ? "video/webm"
       : "video/webm;codecs=vp8";
       
-    this.mediaRecorder = new MediaRecorder(this.canvasStream, { mimeType });
+    console.log(`Using MIME type: ${mimeType}`);
+
+    this.mediaRecorder = new MediaRecorder(this.canvasStream, { 
+      mimeType,
+      videoBitsPerSecond: 2500000 // 2.5 Mbps for decent quality
+    });
     
     this.mediaRecorder.ondataavailable = (e) => {
       if (e.data.size > 0) this.chunks.push(e.data);
     };
 
     this.mediaRecorder.onerror = (event) => {
-      console.error('MediaRecorder error:', event.error);
+      console.error('MediaRecorder error:', (event as any).error);
     };
     
     this.mediaRecorder.start(100);
     
-    // Draw filter overlay on canvas continuously
-    this.drawLoop();
+    // Draw loop is already running if previewing, but ensure it's active
+    if (this.animationFrameId === null) {
+      this.drawLoop();
+    }
+  }
+
+  /**
+   * Start the preview loop without recording
+   */
+  startPreview(previewCanvas?: HTMLCanvasElement) {
+    if (this.animationFrameId !== null) return;
+    this.drawLoop(previewCanvas);
   }
 
   /**
    * Animation loop to draw the filter and camera feed
    */
-  private drawLoop = () => {
+  private drawLoop = async (previewCanvas?: HTMLCanvasElement) => {
+    const { width, height } = this.canvas;
+
+    this.ctx.save();
+    
+    // Mirror the feed if it's the front camera
+    if (this.facingMode === "user") {
+      this.ctx.translate(width, 0);
+      this.ctx.scale(-1, 1);
+    }
+
     // Draw video frame from camera
-    this.ctx.drawImage(this.videoEl, 0, 0, this.canvas.width, this.canvas.height);
+    this.ctx.drawImage(this.videoEl, 0, 0, width, height);
     
-    // Draw AR text lens overlay
-    drawARTextLens(this.ctx, this.filter, this.canvas.width, this.canvas.height);
+    this.ctx.restore();
     
-    this.animationFrameId = requestAnimationFrame(this.drawLoop);
+    // --- AR FACE TRACKING OVERLAYS ---
+    if (this.faceTracker) {
+      const landmarks = await this.faceTracker.detectFace();
+      if (landmarks) {
+        const color = getLensConfig(this.filter).color;
+        
+        // Draw specific AR elements based on filter or general AI branding
+        drawFaceHalo(this.ctx, landmarks, color, width, height);
+        drawFaceScan(this.ctx, landmarks, color, width, height);
+      }
+    }
+    
+    // Draw AR text lens overlay (always oriented correctly)
+    drawARTextLens(this.ctx, this.filter, width, height);
+    
+    // If a preview canvas is provided, copy the main canvas to it
+    if (previewCanvas) {
+      const pCtx = previewCanvas.getContext('2d');
+      if (pCtx) {
+        pCtx.drawImage(this.canvas, 0, 0, previewCanvas.width, previewCanvas.height);
+      }
+    }
+    
+    this.animationFrameId = requestAnimationFrame(() => this.drawLoop(previewCanvas));
   };
 
   /**
@@ -201,15 +268,15 @@ export class CanvasVideoRecorder {
    */
   async stop(): Promise<Blob> {
     return new Promise((resolve) => {
-      if (this.mediaRecorder) {
+      if (this.mediaRecorder && this.mediaRecorder.state !== 'inactive') {
         this.mediaRecorder.onstop = () => {
-          const blob = new Blob(this.chunks, { type: "video/webm" });
+          const type = this.mediaRecorder?.mimeType || "video/webm";
+          const blob = new Blob(this.chunks, { type });
           resolve(blob);
         };
         this.mediaRecorder.stop();
-      }
-      if (this.animationFrameId !== null) {
-        cancelAnimationFrame(this.animationFrameId);
+      } else {
+        resolve(new Blob([], { type: "video/webm" }));
       }
     });
   }
@@ -220,11 +287,14 @@ export class CanvasVideoRecorder {
   cleanup() {
     if (this.animationFrameId !== null) {
       cancelAnimationFrame(this.animationFrameId);
+      this.animationFrameId = null;
     }
     if (this.canvasStream) {
       this.canvasStream.getTracks().forEach((t) => t.stop());
+      this.canvasStream = null;
     }
     this.videoEl.pause();
     this.videoEl.srcObject = null;
+    this.chunks = [];
   }
 }

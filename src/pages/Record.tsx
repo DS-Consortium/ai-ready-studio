@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 
 // Snapchat-style icon wrapper component
 const SnapIcon = ({ icon: Icon, size = 24, color = "white", filled = false }: { icon: any; size?: number; color?: string; filled?: boolean }) => (
@@ -32,16 +33,11 @@ const synthesizeDeclaration = async (filterName: string, onComplete?: () => void
     utterance.pitch = 1;
     utterance.volume = 1;
     
-    // Use canvas to capture audio
-    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-    const mediaStreamAudioDestination = audioContext.createMediaStreamAudioDestination();
-    
-    // Connect utterance to media stream (requires Web Audio API with speech synthesis)
     utterance.onend = onComplete;
     
     window.speechSynthesis.speak(utterance);
     
-    return null; // Return null for now - real implementation would capture audio
+    return null;
   } catch (error) {
     console.error('TTS error:', error);
     return null;
@@ -63,6 +59,7 @@ const Record = () => {
   const MAX_DURATION = 60; // Snapchat 60-second limit
 
   const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
   const previewVideoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const canvasRecorderRef = useRef<CanvasVideoRecorder | null>(null);
@@ -78,6 +75,31 @@ const Record = () => {
       canvasRecorderRef.current?.cleanup();
     };
   }, []);
+
+  // Update recorder when filter changes
+  useEffect(() => {
+    if (streamRef.current && recordingState === "idle") {
+      setupRecorder();
+    }
+  }, [selectedFilter, facingMode]);
+
+  const setupRecorder = () => {
+    if (!streamRef.current) return;
+    
+    // Cleanup old recorder
+    if (canvasRecorderRef.current) {
+      canvasRecorderRef.current.cleanup();
+    }
+    
+    // Create new recorder
+    const recorder = new CanvasVideoRecorder(streamRef.current, selectedFilter, facingMode);
+    canvasRecorderRef.current = recorder;
+    
+    // Start preview loop
+    if (canvasRef.current) {
+      recorder.startPreview(canvasRef.current);
+    }
+  };
 
   const startCamera = async () => {
     try {
@@ -99,22 +121,17 @@ const Record = () => {
         audio: true,
       });
       streamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-      }
+      
+      // Setup the canvas-based recorder/previewer
+      setupRecorder();
+      
     } catch (err) {
       console.error('Camera error:', err);
       const errorMessage = (err as any)?.message || '';
       if (errorMessage.includes('Permission denied') || errorMessage.includes('NotAllowedError')) {
         toast({ 
           title: "Camera permission denied", 
-          description: "Please allow camera access in your device settings to record videos. Go to Settings > Apps > I Am AI Ready > Permissions > Camera and allow access.", 
-          variant: "destructive" 
-        });
-      } else if (errorMessage.includes('NotFoundError')) {
-        toast({ 
-          title: "No camera found", 
-          description: "Your device doesn't have a camera or it's not accessible.", 
+          description: "Please allow camera access in your device settings to record videos.", 
           variant: "destructive" 
         });
       } else {
@@ -130,6 +147,7 @@ const Record = () => {
   const stopCamera = () => {
     streamRef.current?.getTracks().forEach((t) => t.stop());
     streamRef.current = null;
+    canvasRecorderRef.current?.cleanup();
   };
 
   const toggleCamera = async () => {
@@ -139,11 +157,9 @@ const Record = () => {
   };
 
   const startRecording = () => {
-    if (!streamRef.current || !selectedFilter) return;
+    if (!canvasRecorderRef.current) return;
     
-    const recorder = new CanvasVideoRecorder(streamRef.current, selectedFilter);
-    canvasRecorderRef.current = recorder;
-    recorder.start();
+    canvasRecorderRef.current.start();
     
     setRecordingState("recording");
     setDuration(0);
@@ -152,17 +168,10 @@ const Record = () => {
     timerRef.current = setInterval(() => {
       setDuration((d) => {
         const newDuration = d + 1;
-        // Auto-stop at 60 seconds
         if (newDuration >= MAX_DURATION) {
           stopRecording();
-          toast({ 
-            title: "Recording complete", 
-            description: "Maximum 60-second recording reached.", 
-            variant: "default" 
-          });
           return MAX_DURATION;
         }
-        // Warn at 50 seconds
         if (newDuration === 50) {
           setDurationWarning(true);
         }
@@ -182,8 +191,7 @@ const Record = () => {
     setPreviewUrl(url);
     setRecordingState("preview");
     
-    canvasRecorderRef.current.cleanup();
-    canvasRecorderRef.current = null;
+    // Don't cleanup yet, we might need the preview
   };
 
   const resetRecording = () => {
@@ -192,6 +200,8 @@ const Record = () => {
     setPreviewUrl(null);
     setRecordingState("idle");
     setDuration(0);
+    // Restart preview
+    setupRecorder();
   };
 
   const handleSubmit = async () => {
@@ -223,24 +233,16 @@ const Record = () => {
 
       if (insertError) throw insertError;
 
-      // Trigger moderation
       setRecordingState("moderating");
-      toast({ 
-        title: "Video submitted!", 
-        description: "Your declaration is being reviewed for content policy compliance..." 
-      });
-
-      // Try server-side moderation first, fall back to local
+      
       let moderationResult;
       try {
         moderationResult = await moderateVideo(videoData.id);
       } catch (err) {
-        console.warn('Server moderation failed, using local moderation:', err);
         moderationResult = moderateLocally(videoData.title);
       }
 
       if (moderationResult.status === "flagged") {
-        // Update video as flagged
         await supabase.from("videos").update({
           is_approved: false,
           description: moderationResult.reason || "Content policy violation"
@@ -248,11 +250,10 @@ const Record = () => {
 
         toast({ 
           title: "Content Review", 
-          description: moderationResult.reason || "Your video has been flagged for review. Our team will check it shortly.",
+          description: moderationResult.reason || "Your video has been flagged for review.",
           variant: "destructive" 
         });
       } else {
-        // Auto-approve if passed moderation
         await supabase.from("videos").update({
           is_approved: true
         }).eq("id", videoData.id);
@@ -263,13 +264,8 @@ const Record = () => {
         });
       }
 
-      // Award credits for completing declaration
       try {
-        await awardCredits(
-          user.id,
-          CREDIT_COSTS.DECLARATION_COMPLETION,
-          'Completed declaration video'
-        );
+        await awardCredits(user.id, CREDIT_COSTS.DECLARATION_COMPLETION, 'Completed declaration video');
       } catch (creditErr) {
         console.warn('Could not award credits:', creditErr);
       }
@@ -285,415 +281,250 @@ const Record = () => {
     if (!recordedBlob || !selectedFilter) return;
     
     try {
-      const file = new File(
-        [recordedBlob], 
-        `${selectedFilter.shortName}-declaration.webm`, 
-        { type: "video/webm" }
-      );
-      
-      // Use Web Share API if available
+      const file = new File([recordedBlob], `${selectedFilter.shortName}-declaration.webm`, { type: "video/webm" });
       if (navigator.share) {
         await navigator.share({
-          title: `I Am ${selectedFilter.shortName}`,
-          text: `Check out my AI Ready declaration! Watch, vote, and get inspired by leaders from around the world.`,
           files: [file],
-          url: window.location.origin
+          title: 'My AI Declaration',
+          text: `I just declared my AI readiness as ${selectedFilter.shortName}! #IAmAIReady #DSCConsortium`,
         });
       } else {
-        // Fallback
-        toast({ 
-          title: "Share", 
-          description: "Web sharing not available. Recording saved to your device." 
-        });
+        const url = URL.createObjectURL(recordedBlob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${selectedFilter.shortName}-declaration.webm`;
+        a.click();
       }
-    } catch (err: any) {
-      // User cancelled share
-      if (err.name !== 'AbortError') {
-        console.error("Share error:", err);
-      }
+    } catch (err) {
+      console.error('Share error:', err);
     }
   };
 
-  const formatTime = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
-
   return (
-    <div className="fixed inset-0 bg-black flex flex-col overflow-hidden font-sans select-none">
-      {/* ═══════════════════════════════════════════════════════════════
-          TOP BAR - Snapchat Style (Minimal, semi-transparent)
-          ═══════════════════════════════════════════════════════════════ */}
-      <div className="absolute top-0 left-0 right-0 z-40 flex items-center justify-between px-5 py-4 backdrop-blur-md bg-black/30 border-b border-white/5">
-        
-        {/* Left: Back Button */}
-        <motion.button 
-          whileTap={{ scale: 0.85 }}
-          onClick={() => navigate(-1)} 
-          className="relative group flex items-center justify-center w-12 h-12 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 hover:bg-white/20 hover:border-white/40 transition-all duration-200 active:scale-90"
-          title="Back"
-        >
-          <SnapIcon icon={ArrowLeft} size={22} />
-          <div className="absolute inset-0 rounded-full bg-white/0 group-active:bg-white/10 transition-all" />
-        </motion.button>
-
-        {/* Center: Duration Timer (Recording Only) */}
-        {recordingState === "recording" && (
-          <motion.div 
-            initial={{ scale: 0.8, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0.8, opacity: 0 }}
-            className={`flex items-center gap-2 px-5 py-2 rounded-full font-black text-sm backdrop-blur-xl border transition-all duration-300 ${
-              durationWarning 
-                ? 'bg-yellow-500/30 border-yellow-400/40 text-yellow-100 shadow-[0_0_15px_rgba(234,179,8,0.3)]' 
-                : 'bg-red-600/30 border-red-400/40 text-red-100 shadow-[0_0_15px_rgba(220,38,38,0.3)]'
-            }`}
-          >
-            <motion.div 
-              animate={{ scale: durationWarning ? [1, 1.2, 1] : [1, 0.8, 1] }}
-              transition={{ duration: 0.6, repeat: Infinity }}
-              className={`w-2 h-2 rounded-full ${durationWarning ? 'bg-yellow-300' : 'bg-red-300'}`} 
-            />
-            <span className="tracking-wide">{formatTime(duration)}</span>
-            {durationWarning && <span className="ml-1 text-xs font-bold animate-pulse">TIME LIMIT NEAR</span>}
-          </motion.div>
+    <div className="fixed inset-0 bg-black overflow-hidden flex flex-col font-sans">
+      {/* ── Camera Preview Layer ── */}
+      <div className="absolute inset-0 z-0">
+        {recordingState === "preview" ? (
+          <video
+            ref={previewVideoRef}
+            src={previewUrl!}
+            className="w-full h-full object-cover"
+            autoPlay
+            loop
+            playsInline
+          />
+        ) : (
+          <canvas 
+            ref={canvasRef}
+            className="w-full h-full object-cover"
+          />
         )}
-
-        {/* Right: Settings/Flash Button */}
-        <motion.button 
-          whileTap={{ scale: 0.85 }}
-          className="relative group flex items-center justify-center w-12 h-12 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 hover:bg-white/20 hover:border-white/40 transition-all duration-200 active:scale-90"
-          title="Settings"
-        >
-          <SnapIcon icon={Zap} size={22} />
-          <div className="absolute inset-0 rounded-full bg-white/0 group-active:bg-white/10 transition-all" />
-        </motion.button>
+        
+        {/* Mirror effect overlay for preview (front camera only) */}
+        {facingMode === "user" && recordingState === "idle" && (
+          <div className="absolute inset-0 pointer-events-none" />
+        )}
       </div>
 
-      {/* ═══════════════════════════════════════════════════════════════
-          MAIN VIEWPORT - Full Screen Camera
-          ═══════════════════════════════════════════════════════════════ */}
-      <div className="flex-1 relative mt-16">
-        <AnimatePresence mode="wait">
-          {recordingState !== "preview" ? (
-            <motion.video
-              key="camera"
-              ref={videoRef}
-              autoPlay
-              playsInline
-              muted
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="absolute inset-0 w-full h-full object-cover"
-              style={{ transform: "scaleX(-1)" }}
-            />
-          ) : (
-            previewUrl && (
-              <motion.video
-                key="preview"
-                ref={previewVideoRef}
-                src={previewUrl}
-                autoPlay
-                loop
-                playsInline
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="absolute inset-0 w-full h-full object-cover"
-              />
-            )
-          )}
-        </AnimatePresence>
+      {/* ── UI Layer ── */}
+      <div className="relative z-10 flex flex-col h-full justify-between p-6">
+        
+        {/* Top Navigation */}
+        <div className="flex justify-between items-start pt-safe">
+          <motion.button 
+            whileTap={{ scale: 0.9 }}
+            onClick={() => navigate(-1)}
+            className="p-3 rounded-full bg-black/20 backdrop-blur-md border border-white/10 text-white"
+          >
+            <ArrowLeft size={24} />
+          </motion.button>
 
-        {/* AR Filter Overlay - Centered Text */}
-        <AnimatePresence>
-          {selectedFilter && recordingState !== "preview" && (
+          <div className="flex flex-col items-end gap-3">
+            <div className="px-4 py-2 rounded-full bg-black/40 backdrop-blur-xl border border-white/20 flex items-center gap-2">
+              <div className={`w-2 h-2 rounded-full ${recordingState === "recording" ? "bg-red-500 animate-pulse" : "bg-white/40"}`} />
+              <span className="text-white font-black text-[10px] tracking-widest uppercase">
+                {recordingState === "recording" ? `REC ${duration}s` : "READY"}
+              </span>
+              {recordingState === "idle" && (
+                <Badge variant="secondary" className="ml-2 bg-filter-ready text-white border-none animate-pulse">
+                  BETA
+                </Badge>
+              )}
+            </div>
+            
+            {recordingState === "idle" && (
+              <motion.div 
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                className="flex flex-col gap-2"
+              >
+                <Button variant="ghost" size="icon" className="w-12 h-12 rounded-full bg-black/20 backdrop-blur-md border border-white/10 text-white">
+                  <Zap size={20} />
+                </Button>
+                <Button variant="ghost" size="icon" className="w-12 h-12 rounded-full bg-black/20 backdrop-blur-md border border-white/10 text-white">
+                  <Sparkles size={20} />
+                </Button>
+                <Button variant="ghost" size="icon" className="w-12 h-12 rounded-full bg-black/20 backdrop-blur-md border border-white/10 text-white">
+                  <Mic size={20} />
+                </Button>
+              </motion.div>
+            )}
+          </div>
+        </div>
+
+        {/* Bottom Controls */}
+        <div className="pb-safe-offset-4 flex flex-col gap-8">
+          
+          {/* Filter Carousel */}
+          {recordingState === "idle" && (
             <motion.div 
-              initial={{ opacity: 0, y: 20, scale: 0.95 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              transition={{ type: "spring", stiffness: 300, damping: 20 }}
-              className="absolute inset-0 flex flex-col items-center justify-center pb-40 pointer-events-none z-20"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="relative"
             >
-              <div className="relative">
-                {/* Glow Effect */}
-                <div className="absolute -inset-8 bg-gradient-radial from-white/10 to-transparent rounded-full blur-3xl" />
-                
-                {/* Text Container */}
-                <div className="relative bg-black/20 backdrop-blur-sm p-8 rounded-3xl border border-white/10 flex flex-col items-center">
-                  <p className="text-white/70 text-sm font-black tracking-[0.3em] uppercase drop-shadow-xl mb-3">
-                    {getLensConfig(selectedFilter).line1}
-                  </p>
-                  <h2
-                    className="text-7xl font-display font-black text-center leading-none drop-shadow-[0_10px_30px_rgba(0,0,0,0.8)] px-4"
-                    style={{ 
-                      color: getLensConfig(selectedFilter).color,
-                      textShadow: `0 0 30px ${getLensConfig(selectedFilter).color}40`
-                    }}
-                  >
-                    {getLensConfig(selectedFilter).line2.split('\n').map((line, i) => (
-                      <span key={i} className="block">{line}</span>
-                    ))}
-                  </h2>
-                  {getLensConfig(selectedFilter).tagline && (
-                    <motion.div 
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.2 }}
-                      className="mt-6 flex items-center gap-2 bg-white/15 backdrop-blur-xl px-4 py-2 rounded-full border border-white/20"
+              <div 
+                ref={filterScrollRef}
+                className="flex gap-4 overflow-x-auto no-scrollbar px-[40%] snap-x snap-mandatory h-24 items-center"
+              >
+                {AI_FILTERS.map((filter) => {
+                  const isSelected = selectedFilter.id === filter.id;
+                  return (
+                    <motion.button
+                      key={filter.id}
+                      onClick={() => setSelectedFilter(filter)}
+                      whileTap={{ scale: 0.9 }}
+                      className={`flex-shrink-0 flex flex-col items-center gap-2 snap-center transition-all duration-300 ${
+                        isSelected ? "scale-110" : "scale-90 opacity-40 blur-[1px]"
+                      }`}
                     >
-                      <Sparkles className="w-4 h-4 text-yellow-300" />
-                      <span className="text-white text-[10px] font-black tracking-widest uppercase">
-                        {getLensConfig(selectedFilter).tagline}
+                      {/* Icon Circle */}
+                      <div className={`w-14 h-14 rounded-full flex items-center justify-center border-2 transition-all duration-300 ${
+                        isSelected 
+                          ? "bg-white border-white shadow-[0_0_30px_rgba(255,255,255,0.4)]" 
+                          : "bg-black/40 border-white/30"
+                      }`}>
+                        <filter.icon 
+                          size={24} 
+                          className={isSelected ? "text-black" : "text-white"} 
+                        />
+                      </div>
+                      
+                      {/* Filter Name */}
+                      <span className={`text-[8px] font-black tracking-[0.15em] uppercase transition-all duration-300 ${
+                        isSelected ? "text-white" : "text-white/40"
+                      }`}>
+                        {filter.shortName}
                       </span>
-                    </motion.div>
-                  )}
-                </div>
+                    </motion.button>
+                  );
+                })}
               </div>
             </motion.div>
           )}
-        </AnimatePresence>
-      </div>
 
-      {/* ═══════════════════════════════════════════════════════════════
-          BOTTOM ACTION BAR - Snapchat Style (Floating buttons)
-          ═══════════════════════════════════════════════════════════════ */}
-      <div className="absolute bottom-0 left-0 right-0 z-40 pb-20 pt-32 bg-gradient-to-t from-black/80 via-black/40 to-transparent">
-        
-        {/* Filter Carousel - When IDLE */}
-        {recordingState === "idle" && (
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="relative mb-8 px-4"
-          >
-            <div
-              ref={filterScrollRef}
-              className="flex overflow-x-auto gap-5 no-scrollbar px-[calc(50%-44px)] items-center snap-x snap-mandatory py-2"
-              style={{ scrollBehavior: "smooth" }}
-            >
-              {AI_FILTERS.map((filter) => {
-                const cfg = getLensConfig(filter);
-                const isSelected = selectedFilter.id === filter.id;
-                return (
-                  <motion.button
-                    key={filter.id}
-                    whileTap={{ scale: 0.9 }}
-                    onClick={() => setSelectedFilter(filter)}
-                    className="flex-shrink-0 flex flex-col items-center gap-2 snap-center transition-all duration-300"
-                  >
-                    {/* Filter Icon Circle */}
-                    <motion.div
-                      animate={{ scale: isSelected ? 1.15 : 0.95 }}
-                      className={`rounded-full border-[3px] flex items-center justify-center transition-all duration-300 ${
-                        isSelected 
-                          ? 'w-20 h-20 border-white shadow-[0_0_25px_rgba(255,255,255,0.4)]' 
-                          : 'w-16 h-16 border-white/30 opacity-60'
-                      }`}
-                      style={{
-                        backgroundColor: isSelected ? `${cfg.color}30` : "rgba(255,255,255,0.08)",
-                        borderColor: isSelected ? "#fff" : "rgba(255,255,255,0.25)",
-                      }}
-                    >
-                      <filter.icon
-                        className={isSelected ? "w-10 h-10" : "w-7 h-7"}
-                        style={{ color: isSelected ? cfg.color : "#fff", opacity: isSelected ? 1 : 0.7 }}
-                        strokeWidth={isSelected ? 2 : 2.5}
-                      />
-                    </motion.div>
-                    {/* Filter Name */}
-                    <span className={`text-[8px] font-black tracking-[0.15em] uppercase transition-all duration-300 ${
-                      isSelected ? "text-white" : "text-white/40"
-                    }`}>
-                      {filter.shortName}
-                    </span>
-                  </motion.button>
-                );
-              })}
-            </div>
-          </motion.div>
-        )}
-
-        {/* Main Control Buttons */}
-        <div className="flex justify-center items-center gap-6 px-4">
-          
-          {/* LEFT: Camera Toggle (When IDLE) */}
-          {recordingState === "idle" && (
-            <motion.button 
-              whileTap={{ scale: 0.85 }}
-              whileHover={{ scale: 1.05 }}
-              onClick={toggleCamera}
-              title="Switch camera (front/back)"
-              className="relative group flex items-center justify-center w-14 h-14 rounded-full bg-white/15 backdrop-blur-lg border-2 border-white/30 hover:bg-white/25 hover:border-white/50 transition-all duration-200 active:scale-75 shadow-[0_8px_32px_rgba(255,255,255,0.1)]"
-            >
-              <SnapIcon icon={Camera} size={24} />
-              <motion.div 
-                className="absolute inset-0 rounded-full border-2 border-white/0 group-active:border-white/30"
-                animate={{ scale: 1.2 }}
-                transition={{ duration: 0.3 }}
-              />
-            </motion.button>
-          )}
-
-          {/* RIGHT: TTS Button (When IDLE) */}
-          {recordingState === "idle" && (
-            <motion.button 
-              whileTap={{ scale: 0.85 }}
-              whileHover={{ scale: 1.05 }}
-              onClick={() => {
-                synthesizeDeclaration(selectedFilter.shortName);
-                toast({ title: "Audio playing", description: "Your declaration narration is playing." });
-              }}
-              title="Play narration"
-              className="relative group flex items-center justify-center w-14 h-14 rounded-full bg-white/15 backdrop-blur-lg border-2 border-white/30 hover:bg-white/25 hover:border-white/50 transition-all duration-200 active:scale-75 shadow-[0_8px_32px_rgba(255,255,255,0.1)]"
-            >
-              <SnapIcon icon={Volume2} size={24} />
-              <motion.div 
-                className="absolute inset-0 rounded-full border-2 border-white/0 group-active:border-white/30"
-                animate={{ scale: 1.2 }}
-                transition={{ duration: 0.3 }}
-              />
-            </motion.button>
-          )}
-
-          {recordingState === "preview" && <div className="w-14" />}
-          <div className="relative flex flex-col items-center gap-3">
+          {/* Main Control Buttons */}
+          <div className="flex justify-center items-center gap-6 px-4">
+            
+            {/* LEFT: Camera Toggle */}
             {recordingState === "idle" && (
-              <>
+              <motion.button 
+                whileTap={{ scale: 0.85 }}
+                onClick={toggleCamera}
+                className="w-14 h-14 rounded-full bg-white/15 backdrop-blur-lg border-2 border-white/30 flex items-center justify-center"
+              >
+                <SnapIcon icon={Camera} size={24} />
+              </motion.button>
+            )}
+
+            {/* RIGHT: TTS Button */}
+            {recordingState === "idle" && (
+              <motion.button 
+                whileTap={{ scale: 0.85 }}
+                onClick={() => synthesizeDeclaration(selectedFilter.shortName)}
+                className="w-14 h-14 rounded-full bg-white/15 backdrop-blur-lg border-2 border-white/30 flex items-center justify-center"
+              >
+                <SnapIcon icon={Volume2} size={24} />
+              </motion.button>
+            )}
+
+            <div className="relative flex flex-col items-center gap-3">
+              {recordingState === "idle" && (
                 <motion.button
                   onMouseDown={startRecording}
                   onTouchStart={startRecording}
                   className="group relative w-28 h-28 flex items-center justify-center active:scale-75 transition-transform duration-150"
-                  title="Hold to record"
                 >
-                  {/* Outer Ring */}
                   <motion.div 
                     animate={{ scale: [1, 1.1, 1] }}
                     transition={{ duration: 2, repeat: Infinity }}
                     className="absolute inset-0 rounded-full border-[4px] border-white/20" 
                   />
-                  
-                  {/* Center White Button */}
-                  <motion.div 
-                    className="relative w-24 h-24 rounded-full bg-white shadow-[0_0_50px_rgba(255,255,255,0.3)]"
-                    whileHover={{ scale: 1.05, boxShadow: "0 0 60px rgba(255,255,255,0.4)" }}
-                    whileTap={{ scale: 0.9, boxShadow: "0 0 30px rgba(255,255,255,0.2)" }}
-                  />
-                  
-                  {/* Tooltip */}
-                  <motion.div 
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="absolute -top-14 bg-black/60 backdrop-blur-sm text-white text-[10px] font-black px-4 py-2 rounded-full whitespace-nowrap border border-white/20"
-                  >
+                  <div className="relative w-24 h-24 rounded-full bg-white shadow-[0_0_50px_rgba(255,255,255,0.3)]" />
+                  <div className="absolute -top-14 bg-black/60 backdrop-blur-sm text-white text-[10px] font-black px-4 py-2 rounded-full border border-white/20">
                     HOLD TO RECORD
-                  </motion.div>
+                  </div>
                 </motion.button>
-              </>
-            )}
+              )}
 
-            {recordingState === "recording" && (
-              <motion.button
-                onMouseUp={stopRecording}
-                onTouchEnd={stopRecording}
-                className="relative w-32 h-32 flex items-center justify-center"
-                title="Tap to stop"
-              >
-                {/* Pulsing Outer Ring */}
-                <motion.div 
-                  animate={{ scale: [1, 1.3], opacity: [1, 0] }}
-                  transition={{ duration: 1.5, repeat: Infinity }}
-                  className="absolute inset-0 rounded-full border-[4px] border-red-600/60" 
-                />
-                
-                {/* Static Border */}
-                <motion.div 
-                  className="absolute inset-0 rounded-full border-[4px] border-red-600"
-                />
-                
-                {/* Stop Square */}
-                <motion.div 
-                  animate={{ scale: [1, 1.1, 1] }}
-                  transition={{ duration: 0.5, repeat: Infinity }}
-                  className="w-12 h-12 rounded-lg bg-red-600 shadow-[0_0_40px_rgba(220,38,38,0.6)]" 
-                />
-              </motion.button>
-            )}
-
-            {recordingState === "preview" && (
-              <div className="flex items-center gap-12 bg-black/40 backdrop-blur-xl px-8 py-6 rounded-[2rem] border border-white/20 shadow-2xl">
-                
-                {/* Retake */}
-                <motion.button 
-                  whileTap={{ scale: 0.85 }}
-                  onClick={resetRecording}
-                  title="Retake video"
-                  className="flex flex-col items-center gap-2 text-white hover:text-red-400 transition-colors group"
+              {recordingState === "recording" && (
+                <motion.button
+                  onMouseUp={stopRecording}
+                  onTouchEnd={stopRecording}
+                  className="relative w-32 h-32 flex items-center justify-center"
                 >
                   <motion.div 
-                    whileHover={{ scale: 1.1 }}
-                    className="p-3 bg-white/10 rounded-full group-hover:bg-red-500/20 transition-all border border-white/20 group-hover:border-red-400/40"
-                  >
-                    <SnapIcon icon={RotateCcw} size={24} />
-                  </motion.div>
-                  <span className="text-[9px] font-black uppercase tracking-wider">Retake</span>
+                    animate={{ scale: [1, 1.3], opacity: [1, 0] }}
+                    transition={{ duration: 1.5, repeat: Infinity }}
+                    className="absolute inset-0 rounded-full border-[4px] border-red-600/60" 
+                  />
+                  <div className="absolute inset-0 rounded-full border-[4px] border-red-600" />
+                  <div className="w-12 h-12 rounded-lg bg-red-600 shadow-[0_0_40px_rgba(220,38,38,0.6)]" />
                 </motion.button>
+              )}
 
-                <div className="w-px h-14 bg-white/20" />
+              {recordingState === "preview" && (
+                <div className="flex items-center gap-12 bg-black/40 backdrop-blur-xl px-8 py-6 rounded-[2rem] border border-white/20 shadow-2xl">
+                  <motion.button onClick={resetRecording} className="flex flex-col items-center gap-2 text-white group">
+                    <div className="p-3 bg-white/10 rounded-full group-hover:bg-red-500/20 transition-all border border-white/20">
+                      <SnapIcon icon={RotateCcw} size={24} />
+                    </div>
+                    <span className="text-[9px] font-black uppercase tracking-wider">Retake</span>
+                  </motion.button>
 
-                {/* Share */}
-                <motion.button 
-                  whileTap={{ scale: 0.85 }}
-                  onClick={handleShare}
-                  title="Share video"
-                  className="flex flex-col items-center gap-2 text-white hover:text-blue-400 transition-colors group"
-                >
+                  <div className="w-px h-14 bg-white/20" />
+
+                  <motion.button onClick={handleShare} className="flex flex-col items-center gap-2 text-white group">
+                    <div className="p-3 bg-white/10 rounded-full group-hover:bg-blue-500/20 transition-all border border-white/20">
+                      <SnapIcon icon={Share2} size={24} />
+                    </div>
+                    <span className="text-[9px] font-black uppercase tracking-wider">Share</span>
+                  </motion.button>
+
+                  <div className="w-px h-14 bg-white/20" />
+
+                  <motion.button onClick={handleSubmit} className="flex flex-col items-center gap-2 text-white group">
+                    <div className="p-3 bg-white/10 rounded-full group-hover:bg-green-500/20 transition-all border border-white/20">
+                      <SnapIcon icon={Check} size={24} />
+                    </div>
+                    <span className="text-[9px] font-black uppercase tracking-wider">Submit</span>
+                  </motion.button>
+                </div>
+              )}
+
+              {recordingState === "uploading" && (
+                <div className="flex flex-col items-center gap-4">
                   <motion.div 
-                    whileHover={{ scale: 1.1 }}
-                    className="p-3 bg-white/10 rounded-full group-hover:bg-blue-500/20 transition-all border border-white/20 group-hover:border-blue-400/40"
-                  >
-                    <SnapIcon icon={Share2} size={24} />
-                  </motion.div>
-                  <span className="text-[9px] font-black uppercase tracking-wider">Share</span>
-                </motion.button>
-
-                <div className="w-px h-14 bg-white/20" />
-
-                {/* Submit */}
-                <motion.button 
-                  whileTap={{ scale: 0.85 }}
-                  onClick={handleSubmit}
-                  title="Submit video"
-                  className="flex flex-col items-center gap-2 text-white hover:text-green-400 transition-colors group"
-                >
-                  <motion.div 
-                    whileHover={{ scale: 1.1 }}
-                    className="p-3 bg-white/10 rounded-full group-hover:bg-green-500/20 transition-all border border-white/20 group-hover:border-green-400/40"
-                  >
-                    <SnapIcon icon={Check} size={24} />
-                  </motion.div>
-                  <span className="text-[9px] font-black uppercase tracking-wider">Submit</span>
-                </motion.button>
-              </div>
-            )}
-
-            {recordingState === "uploading" && (
-              <motion.div 
-                className="flex flex-col items-center gap-4"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-              >
-                <motion.div 
-                  animate={{ rotate: 360 }}
-                  transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
-                  className="h-16 w-16 border-[4px] border-white/20 border-t-white/80 rounded-full" 
-                />
-                <span className="text-xs font-black text-white/80 tracking-widest uppercase animate-pulse">Processing...</span>
-              </motion.div>
-            )}
+                    animate={{ rotate: 360 }}
+                    transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
+                    className="h-16 w-16 border-[4px] border-white/20 border-t-white/80 rounded-full" 
+                  />
+                  <span className="text-xs font-black text-white/80 tracking-widest uppercase">Processing...</span>
+                </div>
+              )}
+            </div>
+            {recordingState === "idle" && <div className="w-14" />}
+            {recordingState === "preview" && <div className="w-14" />}
           </div>
-
-          {/* RIGHT: Placeholder (for symmetry) */}
-          {recordingState === "idle" && <div className="w-14" />}
-          {recordingState === "preview" && <div className="w-14" />}
         </div>
       </div>
     </div>
