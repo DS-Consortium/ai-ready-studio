@@ -2,6 +2,7 @@
  * Stripe API Routes
  */
 import { Router, Request, Response } from 'express';
+import rateLimit from 'express-rate-limit';
 import {
   createCheckoutSession,
   handleWebhookEvent,
@@ -10,6 +11,17 @@ import {
 } from '../services/stripe.service.js';
 
 const router = Router();
+
+// Rate limiter for Stripe webhook endpoint to mitigate DoS attacks
+const stripeWebhookLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 30, // limit each IP to 30 requests per windowMs
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error: 'Too many requests to Stripe webhook endpoint. Please try again later.',
+  },
+});
 
 /**
  * POST /api/stripe/create-checkout-session
@@ -72,7 +84,7 @@ router.get('/session/:sessionId', async (req: Request, res: Response) => {
  * POST /api/webhooks/stripe
  * Stripe webhook handler
  */
-router.post('/webhooks/stripe', async (req: Request, res: Response) => {
+router.post('/webhooks/stripe', stripeWebhookLimiter, async (req: Request, res: Response) => {
   try {
     // For webhooks, we need raw body as string/buffer
     // This middleware should parse raw body, not JSON
