@@ -1,5 +1,5 @@
 {
-  "appId": "com.dsconsortium.aiready",
+  "appId": "app.lovable.5fdb1da35ef14d389d2290b081003375",
   "productName": "I Am AI Ready",
   "directories": {
     "buildResources": "resources"
@@ -26,7 +26,7 @@
     "icon": "assets/appIcon.ico"
   },
   "appx": {
-    "identityName": "com.dsconsortium.aiready",
+    "identityName": "app.lovable.5fdb1da35ef14d389d2290b081003375",
     "publisherDisplayName": "DS Consortium"
   },
   "mac": {
