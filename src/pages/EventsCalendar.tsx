@@ -1,118 +1,48 @@
 /**
  * Events Calendar Page
- * Shows upcoming events and user registrations
+ * Shows upcoming events with detailed view using real database data
  */
 
-import { useState } from 'react';
-import { Calendar, MapPin, Users, Share2, Bookmark, BookmarkCheck } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
+import { Calendar, MapPin, Users, Share2, Bookmark, BookmarkCheck, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { motion } from 'framer-motion';
+import { Link } from 'react-router-dom';
+import { format, parseISO } from 'date-fns';
+import { useToast } from '@/hooks/use-toast';
 
 interface Event {
   id: string;
   title: string;
-  date: string;
-  time: string;
-  location: string;
-  description: string;
-  speakers: string[];
-  capacity: number;
-  registered: number;
-  image?: string;
-  color: string;
-  category: 'Seminar' | 'Workshop' | 'Masterclass' | 'Webinar';
-  isRegistered?: boolean;
+  description: string | null;
+  event_date: string;
+  location: string | null;
+  event_type: string;
+  filter_id: string | null;
+  max_attendees: number | null;
+  registration_deadline: string | null;
 }
 
-const UPCOMING_EVENTS: Event[] = [
-  {
-    id: '1',
-    title: 'Mastering AI in 2026',
-    date: 'March 15, 2026',
-    time: '10:00 AM - 12:00 PM',
-    location: 'Dubai, UAE',
-    description: 'Deep dive into advanced AI applications and strategies for 2026',
-    speakers: ['Dr. Sarah Chen', 'Prof. Marcus Johnson'],
-    capacity: 50,
-    registered: 38,
-    color: 'from-blue-500 to-blue-600',
-    category: 'Seminar',
-    isRegistered: true,
-  },
-  {
-    id: '2',
-    title: 'Data Governance Masterclass',
-    date: 'March 17-19, 2026',
-    time: '9:00 AM - 5:00 PM',
-    location: 'Riyadh, Saudi Arabia',
-    description: 'Comprehensive training on data governance frameworks',
-    speakers: ['Dr. Amina Hassan', 'James Wilson'],
-    capacity: 30,
-    registered: 24,
-    color: 'from-purple-500 to-purple-600',
-    category: 'Masterclass',
-    isRegistered: false,
-  },
-  {
-    id: '3',
-    title: 'AI Ethics & Responsible Innovation',
-    date: 'March 25, 2026',
-    time: '2:00 PM - 4:30 PM',
-    location: 'Washington D.C., USA',
-    description: 'Ethics frameworks and responsible AI deployment',
-    speakers: ['Dr. David Okonkwo', 'Elena Rodriguez'],
-    capacity: 40,
-    registered: 32,
-    color: 'from-emerald-500 to-emerald-600',
-    category: 'Seminar',
-    isRegistered: false,
-  },
-  {
-    id: '4',
-    title: 'Cybersecurity for AI Ecosystems',
-    date: 'April 10, 2026',
-    time: '3:00 PM - 5:00 PM',
-    location: 'Accra, Ghana',
-    description: 'Protecting AI systems from emerging threats',
-    speakers: ['Dr. Kwame Mensah'],
-    capacity: 45,
-    registered: 18,
-    color: 'from-red-500 to-red-600',
-    category: 'Workshop',
-    isRegistered: false,
-  },
-  {
-    id: '5',
-    title: 'Applied AI Bootcamp',
-    date: 'April - June 2026',
-    time: 'Self-paced',
-    location: 'Online',
-    description: '12-week intensive bootcamp on practical AI implementation',
-    speakers: ['Industry Practitioners'],
-    capacity: 100,
-    registered: 67,
-    color: 'from-orange-500 to-orange-600',
-    category: 'Webinar',
-    isRegistered: true,
-  },
-  {
-    id: '6',
-    title: 'Digital Strategy & Transformation',
-    date: 'May 5-7, 2026',
-    time: '9:00 AM - 5:00 PM',
-    location: 'Lagos, Nigeria',
-    description: 'Transform your organization in the digital age',
-    speakers: ['Dr. Chike Obi', 'Zainab Ahmed'],
-    capacity: 50,
-    registered: 35,
-    color: 'from-pink-500 to-pink-600',
-    category: 'Workshop',
-    isRegistered: false,
-  },
-];
+interface Registration {
+  event_id: string;
+  status: string;
+}
 
 const EventCard = ({ event, isRegistered }: { event: Event; isRegistered: boolean }) => {
+  const categoryColors: Record<string, string> = {
+    workshop: 'from-blue-500 to-blue-600',
+    seminar: 'from-purple-500 to-purple-600',
+    masterclass: 'from-emerald-500 to-emerald-600',
+    bootcamp: 'from-red-500 to-red-600',
+    webinar: 'from-orange-500 to-orange-600',
+  };
+
+  const color = categoryColors[event.event_type?.toLowerCase() || 'seminar'];
+  const eventDate = event.event_date ? format(parseISO(event.event_date), 'MMM dd, yyyy') : 'TBD';
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -120,10 +50,10 @@ const EventCard = ({ event, isRegistered }: { event: Event; isRegistered: boolea
       className="rounded-lg overflow-hidden border border-border hover:shadow-lg transition"
     >
       {/* Event Header */}
-      <div className={`bg-gradient-to-r ${event.color} p-4 text-white`}>
+      <div className={`bg-gradient-to-r ${color} p-4 text-white`}>
         <div className="flex justify-between items-start mb-2">
-          <span className="text-xs font-semibold bg-white/20 px-2 py-1 rounded-full">
-            {event.category}
+          <span className="text-xs font-semibold bg-white/20 px-2 py-1 rounded-full capitalize">
+            {event.event_type}
           </span>
           <button className="text-white hover:scale-110 transition">
             {isRegistered ? (
@@ -138,49 +68,26 @@ const EventCard = ({ event, isRegistered }: { event: Event; isRegistered: boolea
 
       {/* Event Details */}
       <div className="p-4 space-y-3">
-        {/* Date & Time */}
+        {/* Date */}
         <div className="flex items-start gap-2 text-sm">
           <Calendar className="w-4 h-4 text-muted-foreground mt-1 flex-shrink-0" />
           <div>
-            <p className="font-medium">{event.date}</p>
-            <p className="text-muted-foreground">{event.time}</p>
+            <p className="font-medium">{eventDate}</p>
           </div>
         </div>
 
         {/* Location */}
-        <div className="flex items-center gap-2 text-sm">
-          <MapPin className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-          <p className="font-medium">{event.location}</p>
-        </div>
+        {event.location && (
+          <div className="flex items-center gap-2 text-sm">
+            <MapPin className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+            <p className="font-medium">{event.location}</p>
+          </div>
+        )}
 
         {/* Description */}
-        <p className="text-sm text-muted-foreground line-clamp-2">{event.description}</p>
-
-        {/* Speakers */}
-        <div className="flex flex-wrap gap-1">
-          {event.speakers.map((speaker) => (
-            <span key={speaker} className="text-xs bg-muted px-2 py-1 rounded-full">
-              {speaker}
-            </span>
-          ))}
-        </div>
-
-        {/* Capacity */}
-        <div className="flex items-center gap-2 text-sm">
-          <Users className="w-4 h-4 text-muted-foreground" />
-          <p>
-            <span className="font-medium">{event.registered}</span>
-            <span className="text-muted-foreground">/{event.capacity} registered</span>
-          </p>
-        </div>
-
-        {/* Progress Bar */}
-        <div className="w-full bg-muted rounded-full h-2 overflow-hidden">
-          <div
-            className={`bg-gradient-to-r ${event.color} h-full transition`}
-            style={{ width: `${(event.registered / event.capacity) * 100}%` }}
-          />
-        </div>
+        {event.description && (
+          <p className="text-sm text-muted-foreground line-clamp-2">{event.description}</p>
+        )}
 
         {/* Action Buttons */}
         <div className="flex gap-2 pt-2">
@@ -188,6 +95,7 @@ const EventCard = ({ event, isRegistered }: { event: Event; isRegistered: boolea
             size="sm"
             className="flex-1"
             variant={isRegistered ? 'outline' : 'default'}
+            onClick={() => window.open('https://dsconsortium.com/events', '_blank')}
           >
             {isRegistered ? 'Registered' : 'Register'}
           </Button>
@@ -201,18 +109,67 @@ const EventCard = ({ event, isRegistered }: { event: Event; isRegistered: boolea
 };
 
 const EventsCalendar = () => {
+  const { user } = useAuth();
+  const { toast } = useToast();
   const [activeTab, setActiveTab] = useState('upcoming');
-  const registeredEvents = UPCOMING_EVENTS.filter((e) => e.isRegistered);
-  const upcomingEvents = UPCOMING_EVENTS;
+  const [events, setEvents] = useState<Event[]>([]);
+  const [registrations, setRegistrations] = useState<Registration[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchEvents();
+    if (user) {
+      fetchRegistrations();
+    }
+  }, [user]);
+
+  const fetchEvents = async () => {
+    const { data, error } = await supabase
+      .from('events')
+      .select('*')
+      .eq('is_active', true)
+      .order('event_date', { ascending: true });
+
+    if (!error && data) {
+      setEvents(data);
+    }
+    setLoading(false);
+  };
+
+  const fetchRegistrations = async () => {
+    if (!user) return;
+
+    const { data } = await supabase
+      .from('event_registrations')
+      .select('event_id, status')
+      .eq('user_id', user.id);
+
+    if (data) {
+      setRegistrations(data);
+    }
+  };
+
+  const isRegistered = (eventId: string) => {
+    return registrations.some((r) => r.event_id === eventId);
+  };
+
+  const registeredEvents = events.filter((e) => isRegistered(e.id));
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background to-muted pb-24">
+    <div className="min-h-screen bg-background pb-24">
       {/* Header */}
       <div className="sticky top-0 z-40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b border-border">
-        <div className="px-4 py-4">
-          <div className="flex items-center gap-2 mb-4">
-            <Calendar className="w-6 h-6 text-primary" />
-            <h1 className="text-2xl font-bold">Events & Calendar</h1>
+        <div className="container px-4 py-4">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <Calendar className="w-6 h-6 text-primary" />
+              <h1 className="text-2xl font-bold">Events</h1>
+            </div>
+            <Button variant="ghost" asChild className="gap-2">
+              <Link to="/dashboard">
+                <ArrowLeft className="h-4 w-4" />
+              </Link>
+            </Button>
           </div>
 
           {/* Tabs */}
@@ -230,25 +187,36 @@ const EventsCalendar = () => {
       </div>
 
       {/* Events List */}
-      <div className="px-4 py-6 space-y-4">
-        {activeTab === 'upcoming' && (
+      <div className="container px-4 py-6 space-y-4">
+        {loading ? (
+          <div className="space-y-4">
+            {[...Array(3)].map((_, i) => (
+              <div key={i} className="h-40 bg-muted rounded-lg animate-pulse" />
+            ))}
+          </div>
+        ) : activeTab === 'upcoming' ? (
           <>
             <div className="text-sm text-muted-foreground mb-2">
-              {upcomingEvents.length} upcoming events
+              {events.length} upcoming events
             </div>
             <div className="space-y-4">
-              {upcomingEvents.map((event) => (
-                <EventCard
-                  key={event.id}
-                  event={event}
-                  isRegistered={event.isRegistered || false}
-                />
-              ))}
+              {events.length > 0 ? (
+                events.map((event) => (
+                  <EventCard
+                    key={event.id}
+                    event={event}
+                    isRegistered={isRegistered(event.id)}
+                  />
+                ))
+              ) : (
+                <div className="flex flex-col items-center justify-center py-12">
+                  <Calendar className="w-12 h-12 text-muted-foreground mb-4" />
+                  <p className="text-muted-foreground">No upcoming events</p>
+                </div>
+              )}
             </div>
           </>
-        )}
-
-        {activeTab === 'registered' && (
+        ) : (
           <>
             {registeredEvents.length > 0 ? (
               <div className="space-y-4">
@@ -272,6 +240,6 @@ const EventsCalendar = () => {
       </div>
     </div>
   );
-};
+};;
 
 export default EventsCalendar;
