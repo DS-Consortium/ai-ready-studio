@@ -256,6 +256,11 @@ export class CanvasVideoRecorder {
     
     // Draw AR text lens overlay (always oriented correctly)
     drawARTextLens(this.ctx, this.filter, width, height);
+
+    // Draw sticker overlay if one is selected
+    if (this.sticker) {
+      drawStickerOverlay(this.ctx, this.sticker, width, height, this.facingMode);
+    }
     
     // If a preview canvas is provided, copy the main canvas to it
     if (previewCanvas) {
@@ -267,6 +272,10 @@ export class CanvasVideoRecorder {
     
     this.animationFrameId = requestAnimationFrame(() => this.drawLoop(previewCanvas));
   };
+
+  setSticker(sticker: StickerMetadata | null) {
+    this.sticker = sticker;
+  }
 
   /**
    * Stop recording and return the blob
