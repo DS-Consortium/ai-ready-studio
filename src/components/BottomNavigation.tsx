@@ -5,7 +5,7 @@
  */
 
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Home, BookOpen, Calendar, Search, User } from 'lucide-react';
+import { Home, BookOpen, Calendar, Search, User, Trophy } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const NAV_ITEMS = [
@@ -28,10 +28,10 @@ const NAV_ITEMS = [
     path: '/events-calendar',
   },
   {
-    id: 'search',
-    icon: Search,
-    label: 'Search',
-    path: '/gallery',
+    id: 'winners',
+    icon: Trophy,
+    label: 'Winners',
+    path: '/winners',
   },
   {
     id: 'profile',

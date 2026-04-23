@@ -20,6 +20,7 @@ import KnowledgeLibrary from "./pages/KnowledgeLibrary";
 import EventsCalendar from "./pages/EventsCalendar";
 import VideoPlayer from "./pages/VideoPlayer";
 import Pricing from "./pages/Pricing";
+import Winners from "./pages/Winners";
 import BottomNavigation from "./components/BottomNavigation";
 
 const queryClient = new QueryClient();
@@ -89,6 +90,7 @@ const App = () => {
                 <Route path="/events-calendar" element={<EventsCalendar />} />
                 <Route path="/video/:id" element={<VideoPlayer />} />
                 <Route path="/pricing" element={<Pricing />} />
+                <Route path="/winners" element={<Winners />} />
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NotFound />} />
               </Routes>

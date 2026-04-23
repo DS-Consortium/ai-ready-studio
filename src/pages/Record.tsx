@@ -24,7 +24,7 @@ const SnapIcon = ({ icon: Icon, size = 24, color = "white", filled = false }: { 
   />
 );
 
-type RecordingState = "idle" | "recording" | "preview" | "uploading" | "moderating";
+type RecordingState = "idle" | "recording" | "edit" | "preview" | "uploading" | "moderating";
 
 // Text-to-speech helper
 const synthesizeDeclaration = async (filterName: string, onComplete?: () => void): Promise<Blob | null> => {
@@ -239,7 +239,7 @@ const Record = () => {
     setRecordedBlob(blob);
     const url = URL.createObjectURL(blob);
     setPreviewUrl(url);
-    setRecordingState("preview");
+    setRecordingState("edit");
 
     const thumbnail = await createVideoThumbnail(blob);
     if (thumbnail) {
@@ -397,7 +397,70 @@ const Record = () => {
 
   return (
     <div className="fixed inset-0 bg-black overflow-hidden flex flex-col font-sans">
-      {/* ── Camera Preview Layer ── */}
+      {/* ── Edit Step Overlay ── */}
+      {recordingState === "edit" && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -20 }}
+          className="absolute inset-0 z-20 bg-black/80 backdrop-blur-sm flex items-center justify-center p-6"
+        >
+          <div className="w-full max-w-md bg-white/10 backdrop-blur-xl rounded-3xl border border-white/20 p-6">
+            <h2 className="text-white text-xl font-black mb-4 text-center">Edit Your Declaration</h2>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-white/80 text-sm font-medium mb-2">Title</label>
+                <input
+                  type="text"
+                  value={titleText}
+                  onChange={(e) => setTitleText(e.target.value)}
+                  className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-white/30"
+                  placeholder="Enter video title..."
+                />
+              </div>
+
+              <div>
+                <label className="block text-white/80 text-sm font-medium mb-2">Description</label>
+                <textarea
+                  value={descriptionText}
+                  onChange={(e) => setDescriptionText(e.target.value)}
+                  rows={3}
+                  className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-white/30 resize-none"
+                  placeholder="Add a description..."
+                />
+              </div>
+
+              {thumbnailUrl && (
+                <div>
+                  <label className="block text-white/80 text-sm font-medium mb-2">Thumbnail Preview</label>
+                  <img
+                    src={thumbnailUrl}
+                    alt="Video thumbnail"
+                    className="w-full rounded-xl border border-white/20"
+                  />
+                </div>
+              )}
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <Button
+                onClick={() => setRecordingState("preview")}
+                className="flex-1 bg-white/10 hover:bg-white/20 text-white border border-white/20"
+                variant="outline"
+              >
+                Skip Edit
+              </Button>
+              <Button
+                onClick={() => setRecordingState("preview")}
+                className="flex-1 bg-white text-black hover:bg-white/90"
+              >
+                Continue
+              </Button>
+            </div>
+          </div>
+        </motion.div>
+      )}
       <div className="absolute inset-0 z-0">
         {recordingState === "preview" ? (
           <video
@@ -660,18 +723,20 @@ const Record = () => {
                 </div>
               )}
 
-              {recordingState === "uploading" && (
+              {recordingState === "edit" && (
                 <div className="flex flex-col items-center gap-4">
                   <motion.div 
-                    animate={{ rotate: 360 }}
-                    transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
+                    animate={{ scale: [1, 1.1, 1] }}
+                    transition={{ duration: 2, repeat: Infinity }}
                     className="h-16 w-16 border-[4px] border-white/20 border-t-white/80 rounded-full" 
                   />
-                  <span className="text-xs font-black text-white/80 tracking-widest uppercase">Processing...</span>
+                  <span className="text-xs font-black text-white/80 tracking-widest uppercase">Edit your video...</span>
                 </div>
               )}
             </div>
             {recordingState === "idle" && <div className="w-14" />}
+            {recordingState === "recording" && <div className="w-14" />}
+            {recordingState === "edit" && <div className="w-14" />}
             {recordingState === "preview" && <div className="w-14" />}
           </div>
         </div>

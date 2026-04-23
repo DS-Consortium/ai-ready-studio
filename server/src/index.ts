@@ -10,6 +10,7 @@ import { config } from './config.js';
 import stripeRoutes from './routes/stripe.routes.js';
 import notificationsRoutes from './routes/notifications.routes.js';
 import errorsRoutes from './routes/errors.routes.js';
+import ogRoutes from './routes/og.routes.js';
 import { verifyDatabaseSchema } from './db/schema-check.js';
 
 const app: Express = express();
@@ -84,6 +85,7 @@ app.get('/health', async (req: Request, res: Response) => {
 app.use('/api/stripe', stripeRoutes);
 app.use('/api/notifications', notificationsRoutes);
 app.use('/api/errors', errorsRoutes);
+app.use('/api/og', ogRoutes);
 
 // Root endpoint
 app.get('/', (req: Request, res: Response) => {
@@ -95,6 +97,8 @@ app.get('/', (req: Request, res: Response) => {
       health: '/health',
       stripe: '/api/stripe/*',
       notifications: '/api/notifications/*',
+      errors: '/api/errors/*',
+      og: '/api/og/*',
     },
   });
 });

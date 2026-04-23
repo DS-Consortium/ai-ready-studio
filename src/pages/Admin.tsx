@@ -78,14 +78,15 @@ interface DiscountCode {
   valid_until: string | null;
 }
 
-interface PrizeDraw {
+interface VideoWithVotes extends AdminVideo {
+  vote_count: number;
+}
+
+interface Winner {
   id: string;
-  title: string;
-  description: string | null;
-  prize_description: string;
-  draw_date: string;
-  is_completed: boolean;
-  winner_user_id: string | null;
+  video_id: string;
+  rank: number;
+  selected_at: string;
 }
 
 const Admin = () => {
@@ -99,6 +100,8 @@ const Admin = () => {
 
   // Data states
   const [videos, setVideos] = useState<AdminVideo[]>([]);
+  const [videosWithVotes, setVideosWithVotes] = useState<VideoWithVotes[]>([]);
+  const [winners, setWinners] = useState<Winner[]>([]);
   const [events, setEvents] = useState<AdminEvent[]>([]);
   const [discountCodes, setDiscountCodes] = useState<DiscountCode[]>([]);
   const [prizeDraws, setPrizeDraws] = useState<PrizeDraw[]>([]);
@@ -165,17 +168,37 @@ const Admin = () => {
   };
 
   const fetchAllData = async () => {
-    const [videosRes, eventsRes, codesRes, drawsRes] = await Promise.all([
+    const [videosRes, eventsRes, codesRes, drawsRes, votesRes, winnersRes] = await Promise.all([
       supabase.from("videos").select("*").order("created_at", { ascending: false }),
       supabase.from("events").select("*").order("event_date", { ascending: true }),
       supabase.from("discount_codes").select("*").order("created_at", { ascending: false }),
       supabase.from("prize_draws").select("*").order("draw_date", { ascending: true }),
+      supabase.from("votes").select("video_id, count").eq("is_active", true),
+      supabase.from("winners").select("*").order("rank", { ascending: true }),
     ]);
 
-    if (videosRes.data) setVideos(videosRes.data);
+    if (videosRes.data) {
+      setVideos(videosRes.data);
+      // Calculate vote counts for each video
+      const voteCounts = votesRes.data?.reduce((acc: Record<string, number>, vote) => {
+        acc[vote.video_id] = vote.count;
+        return acc;
+      }, {}) || {};
+
+      const videosWithVotesData = videosRes.data
+        .filter(v => v.is_approved)
+        .map(video => ({
+          ...video,
+          vote_count: voteCounts[video.id] || 0,
+        }))
+        .sort((a, b) => b.vote_count - a.vote_count);
+
+      setVideosWithVotes(videosWithVotesData);
+    }
     if (eventsRes.data) setEvents(eventsRes.data);
     if (codesRes.data) setDiscountCodes(codesRes.data);
     if (drawsRes.data) setPrizeDraws(drawsRes.data);
+    if (winnersRes.data) setWinners(winnersRes.data);
   };
 
   const approveVideo = async (videoId: string, approve: boolean) => {
@@ -302,32 +325,35 @@ const Admin = () => {
     }
   };
 
-  const runPrizeDraw = async (drawId: string) => {
-    // Get all entries for this draw
-    const { data: entries } = await supabase
-      .from("prize_draw_entries")
-      .select("user_id")
-      .eq("draw_id", drawId);
+  const selectWinners = async (topCount: number = 3) => {
+    const topVideos = videosWithVotes.slice(0, topCount);
 
-    if (!entries || entries.length === 0) {
-      toast({ title: "No entries", description: "No one has entered this draw yet.", variant: "destructive" });
-      return;
-    }
+    // Clear existing winners
+    await supabase.from("winners").delete().neq("id", "00000000-0000-0000-0000-000000000000");
 
-    // Pick random winner using cryptographically secure randomness
-    const winnerIndex = getSecureRandomInt(entries.length);
-    const winnerId = entries[winnerIndex].user_id;
+    // Insert new winners
+    const winnersData = topVideos.map((video, index) => ({
+      video_id: video.id,
+      rank: index + 1,
+    }));
 
-    // Update draw with winner
-    const { error } = await supabase
-      .from("prize_draws")
-      .update({ winner_user_id: winnerId, is_completed: true })
-      .eq("id", drawId);
+    const { error } = await supabase.from("winners").insert(winnersData);
 
     if (error) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     } else {
-      toast({ title: "Winner selected!", description: `Winner picked from ${entries.length} entries!` });
+      toast({ title: "Winners selected!", description: `Top ${topCount} videos selected as winners.` });
+      fetchAllData();
+    }
+  };
+
+  const clearWinners = async () => {
+    const { error } = await supabase.from("winners").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+
+    if (error) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "Winners cleared" });
       fetchAllData();
     }
   };
@@ -417,10 +443,14 @@ const Admin = () => {
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-4 mb-6">
+          <TabsList className="grid w-full grid-cols-5 mb-6">
             <TabsTrigger value="videos" className="gap-2">
               <Video className="h-4 w-4" />
               <span className="hidden sm:inline">Videos</span>
+            </TabsTrigger>
+            <TabsTrigger value="winners" className="gap-2">
+              <Trophy className="h-4 w-4" />
+              <span className="hidden sm:inline">Winners</span>
             </TabsTrigger>
             <TabsTrigger value="events" className="gap-2">
               <Calendar className="h-4 w-4" />
