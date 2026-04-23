@@ -7,7 +7,8 @@ import { config } from '../config.js';
 import { supabase } from '../db/supabase.js';
 
 // Initialize Firebase Admin SDK
-if (admin && !admin.apps?.length && config.FIREBASE_PROJECT_ID && config.FIREBASE_PRIVATE_KEY && config.FIREBASE_CLIENT_EMAIL) {
+let messaging: any = null;
+if (admin && admin.credential && config.FIREBASE_PROJECT_ID && config.FIREBASE_PRIVATE_KEY && config.FIREBASE_CLIENT_EMAIL) {
   try {
     admin.initializeApp({
       credential: admin.credential.cert({
@@ -21,12 +22,13 @@ if (admin && !admin.apps?.length && config.FIREBASE_PROJECT_ID && config.FIREBAS
         token_uri: 'https://oauth2.googleapis.com/token',
       } as any),
     });
+    messaging = admin.messaging();
   } catch (error) {
     console.warn('Firebase initialization failed, push notifications will be disabled:', error);
   }
 }
 
-export const messaging = admin.messaging();
+export { messaging };
 
 /**
  * Send push notification to device
