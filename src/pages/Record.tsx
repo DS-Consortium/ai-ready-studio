@@ -652,9 +652,6 @@ const Record = () => {
         {/* Bottom Controls */}
         <div className="pb-safe-offset-4 flex flex-col gap-8">
           
-          {/* Bottom Controls */}
-        <div className="pb-safe-offset-4 flex flex-col gap-8">
-          
           {/* Filter Carousel */}
           {recordingState === "idle" && (
             <motion.div 
@@ -782,7 +779,7 @@ const Record = () => {
 
             <div className="relative flex flex-col items-center gap-3">
               {recordingState === "idle" && (
-                <>
+                <div className="flex flex-col items-center gap-3">
                   <motion.button
                     onClick={capturePhoto}
                     className="group relative w-20 h-20 flex items-center justify-center active:scale-75 transition-transform duration-150"
@@ -794,23 +791,23 @@ const Record = () => {
                       PHOTO
                     </div>
                   </motion.button>
-                  
+
                   <motion.button
                     onMouseDown={startRecording}
                     onTouchStart={startRecording}
                     className="group relative w-28 h-28 flex items-center justify-center active:scale-75 transition-transform duration-150"
                   >
-                    <motion.div 
+                    <motion.div
                       animate={{ scale: [1, 1.1, 1] }}
                       transition={{ duration: 2, repeat: Infinity }}
-                      className="absolute inset-0 rounded-full border-[4px] border-white/20" 
+                      className="absolute inset-0 rounded-full border-[4px] border-white/20"
                     />
                     <div className="relative w-24 h-24 rounded-full bg-white shadow-lg" />
                     <div className="absolute -top-14 bg-black/60 backdrop-blur-sm text-white text-[10px] font-black px-4 py-2 rounded-full border border-white/20">
                       HOLD TO RECORD
                     </div>
                   </motion.button>
-                </>
+                </div>
               )}
 
               {recordingState === "recording" && (
