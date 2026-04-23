@@ -805,7 +805,7 @@ const Record = () => {
                       transition={{ duration: 2, repeat: Infinity }}
                       className="absolute inset-0 rounded-full border-[4px] border-white/20" 
                     />
-                    <div className="relative w-24 h-24 rounded-full bg-white shadow-[0_0_50px_rgba(255,255,255,0.3)]" />
+                    <div className="relative w-24 h-24 rounded-full bg-white shadow-lg" />
                     <div className="absolute -top-14 bg-black/60 backdrop-blur-sm text-white text-[10px] font-black px-4 py-2 rounded-full border border-white/20">
                       HOLD TO RECORD
                     </div>
@@ -825,9 +825,10 @@ const Record = () => {
                     className="absolute inset-0 rounded-full border-[4px] border-red-600/60" 
                   />
                   <div className="absolute inset-0 rounded-full border-[4px] border-red-600" />
-                  <div className="w-12 h-12 rounded-lg bg-red-600 shadow-[0_0_40px_rgba(220,38,38,0.6)]" />
+                    <div className="w-12 h-12 rounded-lg bg-red-600 shadow-lg" />
                 </motion.button>
-              )}
+              </>)
+            )}
 
               {recordingState === "preview" && (
                 <div className="flex items-center gap-12 bg-black/40 backdrop-blur-xl px-8 py-6 rounded-[2rem] border border-white/20 shadow-2xl">
