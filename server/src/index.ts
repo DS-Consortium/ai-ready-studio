@@ -9,6 +9,8 @@ import 'dotenv/config';
 import { config } from './config.js';
 import stripeRoutes from './routes/stripe.routes.js';
 import notificationsRoutes from './routes/notifications.routes.js';
+import errorsRoutes from './routes/errors.routes.js';
+import { verifyDatabaseSchema } from './db/schema-check.js';
 
 const app: Express = express();
 
@@ -49,17 +51,39 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 });
 
 // Health check endpoint
-app.get('/health', (req: Request, res: Response) => {
-  res.json({
+app.get('/health', async (req: Request, res: Response) => {
+  const base = {
     status: 'ok',
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),
-  });
+  };
+
+  try {
+    const schemaStatus = await verifyDatabaseSchema();
+    return res.json({
+      ...base,
+      schemaStatus,
+    });
+  } catch (error: any) {
+    return res.status(500).json({
+      ...base,
+      status: 'error',
+      schemaStatus: {
+        ok: false,
+        missingTables: [],
+        expectedTables: [],
+        foundTables: [],
+        checkedAt: new Date().toISOString(),
+        error: error?.message || 'Schema verification failed',
+      },
+    });
+  }
 });
 
 // API Routes
 app.use('/api/stripe', stripeRoutes);
 app.use('/api/notifications', notificationsRoutes);
+app.use('/api/errors', errorsRoutes);
 
 // Root endpoint
 app.get('/', (req: Request, res: Response) => {

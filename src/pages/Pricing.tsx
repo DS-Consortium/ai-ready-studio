@@ -3,7 +3,7 @@
  * Integrated with Stripe for payment processing
  */
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -29,7 +29,7 @@ interface PricingPlan {
   credits: number;
   price: number;
   currency: string;
-  icon: React.ReactNode;
+  icon: ReactNode;
   features: string[];
   recommended?: boolean;
   bestValue?: boolean;
@@ -145,30 +145,18 @@ const Pricing = () => {
     setProcessing(plan.id);
 
     try {
-      // Call Stripe checkout endpoint
-      const response = await fetch("/api/stripe/checkout", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${user.id}`,
-        },
-        body: JSON.stringify({
-          planId: plan.id,
-          planType: selectedTab,
-          amount: plan.price,
-          credits: plan.credits,
-        }),
+      const checkout = await initiateStripeCheckout({
+        userId: user.id,
+        credits: plan.credits,
+        price: plan.price,
+        customerEmail: user.email || "",
       });
 
-      if (!response.ok) {
-        throw new Error("Failed to initiate payment");
+      if (!checkout.url) {
+        throw new Error("Could not create Stripe checkout session.");
       }
 
-      const { sessionId } = await response.json();
-
-      // Redirect to Stripe Checkout
-      // In real implementation, this would use @stripe/react-stripe-js
-      window.location.href = `/checkout/${sessionId}`;
+      window.location.href = checkout.url;
     } catch (error) {
       console.error("Purchase error:", error);
       toast({
