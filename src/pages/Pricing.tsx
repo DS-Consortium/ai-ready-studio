@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { initiateStripeCheckout } from "@/lib/stripe-integration";
 
 interface PricingPlan {
   id: string;
