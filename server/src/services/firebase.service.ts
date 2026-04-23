@@ -7,19 +7,23 @@ import { config } from '../config.js';
 import { supabase } from '../db/supabase.js';
 
 // Initialize Firebase Admin SDK
-if (!admin.apps.length) {
-  admin.initializeApp({
-    credential: admin.credential.cert({
-      type: 'service_account',
-      project_id: config.FIREBASE_PROJECT_ID,
-      private_key_id: '',
-      private_key: config.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-      client_email: config.FIREBASE_CLIENT_EMAIL,
-      client_id: '',
-      auth_uri: 'https://accounts.google.com/o/oauth2/auth',
-      token_uri: 'https://oauth2.googleapis.com/token',
-    } as any),
-  });
+if (admin && !admin.apps?.length && config.FIREBASE_PROJECT_ID && config.FIREBASE_PRIVATE_KEY && config.FIREBASE_CLIENT_EMAIL) {
+  try {
+    admin.initializeApp({
+      credential: admin.credential.cert({
+        type: 'service_account',
+        project_id: config.FIREBASE_PROJECT_ID,
+        private_key_id: '',
+        private_key: config.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+        client_email: config.FIREBASE_CLIENT_EMAIL,
+        client_id: '',
+        auth_uri: 'https://accounts.google.com/o/oauth2/auth',
+        token_uri: 'https://oauth2.googleapis.com/token',
+      } as any),
+    });
+  } catch (error) {
+    console.warn('Firebase initialization failed, push notifications will be disabled:', error);
+  }
 }
 
 export const messaging = admin.messaging();
