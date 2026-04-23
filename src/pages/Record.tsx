@@ -263,6 +263,7 @@ const Record = () => {
   const handleSubmit = async () => {
     if (!recordedBlob || !selectedFilter) return;
     setRecordingState("uploading");
+    setIsUploading(true);
 
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -277,11 +278,30 @@ const Record = () => {
       if (uploadError) throw uploadError;
 
       const { data: { publicUrl } } = supabase.storage.from("videos").getPublicUrl(fileName);
+      let thumbnailPublicUrl: string | null = null;
+
+      if (thumbnailUrl) {
+        try {
+          const thumbBlob = await fetch(thumbnailUrl).then((res) => res.blob());
+          const thumbPath = `${user.id}/${Date.now()}-thumb.png`;
+          const { error: thumbError } = await supabase.storage.from("videos").upload(thumbPath, thumbBlob, {
+            contentType: "image/png",
+          });
+          if (!thumbError) {
+            const { data: { publicUrl: thumbUrl } } = supabase.storage.from("videos").getPublicUrl(thumbPath);
+            thumbnailPublicUrl = thumbUrl || null;
+          }
+        } catch (thumbError) {
+          console.warn("Thumbnail upload failed", thumbError);
+        }
+      }
 
       const { data: videoData, error: insertError } = await supabase.from("videos").insert({
         user_id: user.id,
-        title: `${selectedFilter.shortName} Declaration`,
+        title: titleText || `${selectedFilter.shortName} Declaration`,
+        description: descriptionText || null,
         video_url: publicUrl,
+        thumbnail_url: thumbnailPublicUrl,
         filter_id: selectedFilter.id,
         duration_seconds: duration,
         is_submitted: true,
