@@ -58,6 +58,7 @@ const Record = () => {
   const [recordingState, setRecordingState] = useState<RecordingState>("idle");
   const [duration, setDuration] = useState(0);
   const [recordedBlob, setRecordedBlob] = useState<Blob | null>(null);
+  const [capturedPhoto, setCapturedPhoto] = useState<string | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [thumbnailUrl, setThumbnailUrl] = useState<string | null>(null);
   const [titleText, setTitleText] = useState<string>(`${initialFilter.shortName} Declaration`);
@@ -247,6 +248,18 @@ const Record = () => {
     }
     
     // Don't cleanup yet, we might need the preview
+  };
+
+  const capturePhoto = () => {
+    if (!canvasRef.current) return;
+    
+    // Capture the current canvas state (which includes all overlays)
+    const photoDataUrl = canvasRef.current.toDataURL("image/jpeg", 0.95);
+    setCapturedPhoto(photoDataUrl);
+    setRecordingState("edit");
+    
+    // Create thumbnail from photo
+    setThumbnailUrl(photoDataUrl);
   };
 
   const resetRecording = () => {
