@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { RotateCcw, Check, ArrowLeft, Zap, Sparkles, Camera, Share2, Volume2, Mic } from "lucide-react";
 import { AI_FILTERS, AIFilter } from "@/lib/filters";
 import { getLensConfig, CanvasVideoRecorder } from "@/lib/canvas-recorder";
@@ -50,15 +50,22 @@ const synthesizeDeclaration = async (filterName: string, onComplete?: () => void
 
 const Record = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { toast } = useToast();
-  const [selectedFilter, setSelectedFilter] = useState<AIFilter>(AI_FILTERS[0]);
+  const defaultFilterId = searchParams.get("filter") || AI_FILTERS[0].id;
+  const initialFilter = AI_FILTERS.find((filter) => filter.id === defaultFilterId) || AI_FILTERS[0];
+  const [selectedFilter, setSelectedFilter] = useState<AIFilter>(initialFilter);
   const [recordingState, setRecordingState] = useState<RecordingState>("idle");
   const [duration, setDuration] = useState(0);
   const [recordedBlob, setRecordedBlob] = useState<Blob | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [thumbnailUrl, setThumbnailUrl] = useState<string | null>(null);
+  const [titleText, setTitleText] = useState<string>(`${initialFilter.shortName} Declaration`);
+  const [descriptionText, setDescriptionText] = useState<string>(initialFilter.description);
   const [facingMode, setFacingMode] = useState<"user" | "environment">("user");
   const [durationWarning, setDurationWarning] = useState(false);
   const [sticker, setSticker] = useState<StickerMetadata>(DEFAULT_STICKERS[0]);
+  const [isUploading, setIsUploading] = useState(false);
 
   const MAX_DURATION = 60; // Snapchat 60-second limit
 
@@ -154,6 +161,45 @@ const Record = () => {
     canvasRecorderRef.current?.cleanup();
   };
 
+  const createVideoThumbnail = async (blob: Blob): Promise<string | null> => {
+    try {
+      const tempVideo = document.createElement("video");
+      tempVideo.src = URL.createObjectURL(blob);
+      tempVideo.muted = true;
+      tempVideo.playsInline = true;
+
+      await new Promise<void>((resolve, reject) => {
+        tempVideo.addEventListener("loadedmetadata", () => {
+          tempVideo.currentTime = Math.min(0.5, tempVideo.duration / 2);
+        });
+        tempVideo.addEventListener("seeked", () => resolve());
+        tempVideo.addEventListener("error", () => reject(new Error("Thumbnail capture failed")));
+      });
+
+      const thumbCanvas = document.createElement("canvas");
+      thumbCanvas.width = 1200;
+      thumbCanvas.height = 630;
+      const thumbCtx = thumbCanvas.getContext("2d");
+      if (!thumbCtx) return null;
+
+      thumbCtx.fillStyle = "#111827";
+      thumbCtx.fillRect(0, 0, thumbCanvas.width, thumbCanvas.height);
+      thumbCtx.drawImage(tempVideo, 0, 0, thumbCanvas.width, thumbCanvas.height);
+      thumbCtx.fillStyle = "rgba(0,0,0,0.36)";
+      thumbCtx.fillRect(0, thumbCanvas.height - 140, thumbCanvas.width, 140);
+      thumbCtx.fillStyle = "white";
+      thumbCtx.font = "bold 42px Inter, sans-serif";
+      thumbCtx.fillText(titleText, 40, thumbCanvas.height - 70);
+
+      const dataUrl = thumbCanvas.toDataURL("image/png");
+      URL.revokeObjectURL(tempVideo.src);
+      return dataUrl;
+    } catch (error) {
+      console.warn("Thumbnail generation failed:", error);
+      return null;
+    }
+  };
+
   const toggleCamera = async () => {
     stopCamera();
     setFacingMode(facingMode === "user" ? "environment" : "user");
@@ -194,6 +240,11 @@ const Record = () => {
     const url = URL.createObjectURL(blob);
     setPreviewUrl(url);
     setRecordingState("preview");
+
+    const thumbnail = await createVideoThumbnail(blob);
+    if (thumbnail) {
+      setThumbnailUrl(thumbnail);
+    }
     
     // Don't cleanup yet, we might need the preview
   };
@@ -202,6 +253,7 @@ const Record = () => {
     if (previewUrl) URL.revokeObjectURL(previewUrl);
     setRecordedBlob(null);
     setPreviewUrl(null);
+    setThumbnailUrl(null);
     setRecordingState("idle");
     setDuration(0);
     // Restart preview

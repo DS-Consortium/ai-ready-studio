@@ -44,7 +44,6 @@ const Gallery = () => {
   const [activeFilter, setActiveFilter] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<"popular" | "recent">("popular");
   const [cooldownSeconds, setCooldownSeconds] = useState(0);
-  const [userVoteMap, setUserVoteMap] = useState<Record<string, string>>({});
   const VOTE_COOLDOWN_SECONDS = 20;
 
   useEffect(() => {
@@ -66,7 +65,7 @@ const Gallery = () => {
         filter_id,
         created_at,
         user_id,
-        votes (id)
+        votes (id, user_id, created_at)
       `
       )
       .eq("is_submitted", true)
@@ -89,16 +88,6 @@ const Gallery = () => {
     } else {
       const fetchedVideos = (data as GalleryVideo[]) || [];
       setVideos(fetchedVideos);
-      if (user) {
-        const voteMap = fetchedVideos.reduce<Record<string, string>>((acc, video) => {
-          const vote = video.votes?.find((entry) => entry.user_id === user.id);
-          if (vote) acc[video.id] = vote.id;
-          return acc;
-        }, {});
-        setUserVoteMap(voteMap);
-      } else {
-        setUserVoteMap({});
-      }
     }
 
     setLoading(false);
