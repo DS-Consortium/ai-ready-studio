@@ -18,6 +18,12 @@ import {
   Filter,
 } from "lucide-react";
 
+interface GalleryVote {
+  id: string;
+  user_id: string;
+  created_at: string;
+}
+
 interface GalleryVideo {
   id: string;
   title: string;
@@ -27,7 +33,7 @@ interface GalleryVideo {
   filter_id: string | null;
   created_at: string;
   user_id: string;
-  votes: { id: string }[];
+  votes: GalleryVote[];
 }
 
 const Gallery = () => {
@@ -37,6 +43,9 @@ const Gallery = () => {
   const [loading, setLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<"popular" | "recent">("popular");
+  const [cooldownSeconds, setCooldownSeconds] = useState(0);
+  const [userVoteMap, setUserVoteMap] = useState<Record<string, string>>({});
+  const VOTE_COOLDOWN_SECONDS = 20;
 
   useEffect(() => {
     fetchVideos();
@@ -78,7 +87,18 @@ const Gallery = () => {
     if (error) {
       console.error("Error fetching videos:", error);
     } else {
-      setVideos((data as GalleryVideo[]) || []);
+      const fetchedVideos = (data as GalleryVideo[]) || [];
+      setVideos(fetchedVideos);
+      if (user) {
+        const voteMap = fetchedVideos.reduce<Record<string, string>>((acc, video) => {
+          const vote = video.votes?.find((entry) => entry.user_id === user.id);
+          if (vote) acc[video.id] = vote.id;
+          return acc;
+        }, {});
+        setUserVoteMap(voteMap);
+      } else {
+        setUserVoteMap({});
+      }
     }
 
     setLoading(false);
@@ -94,35 +114,58 @@ const Gallery = () => {
       return;
     }
 
-    const video = videos.find((v) => v.id === videoId);
-    const hasVoted = video?.votes.some(
-      (v) => videos.find((vid) => vid.id === videoId)?.user_id === user.id
-    );
+    if (cooldownSeconds > 0) {
+      toast({
+        title: "Hold on",
+        description: `Please wait ${cooldownSeconds}s before casting another vote.`,
+      });
+      return;
+    }
 
-    if (hasVoted) {
-      // Remove vote
+    const video = videos.find((v) => v.id === videoId);
+    if (!video) return;
+
+    const existingVote = video.votes.find((vote) => vote.user_id === user.id);
+
+    if (existingVote) {
       await supabase
         .from("votes")
         .delete()
-        .eq("video_id", videoId)
-        .eq("user_id", user.id);
+        .eq("id", existingVote.id);
     } else {
-      // Add vote
-      await supabase.from("votes").insert({
+      const { error } = await supabase.from("votes").insert({
         video_id: videoId,
         user_id: user.id,
       });
+      if (error) {
+        console.error("Vote submission failed:", error);
+        toast({
+          title: "Vote failed",
+          description: error.message,
+          variant: "destructive",
+        });
+        return;
+      }
+      setCooldownSeconds(VOTE_COOLDOWN_SECONDS);
     }
 
-    // Refresh videos
     fetchVideos();
   };
 
   const userVotedFor = (video: GalleryVideo) => {
     if (!user) return false;
-    // Check if current user has voted - we need to check votes table
-    return false; // Simplified - would need separate query
+    return video.votes.some((vote) => vote.user_id === user.id);
   };
+
+  useEffect(() => {
+    if (cooldownSeconds <= 0) return;
+
+    const interval = window.setInterval(() => {
+      setCooldownSeconds((seconds) => Math.max(0, seconds - 1));
+    }, 1000);
+
+    return () => window.clearInterval(interval);
+  }, [cooldownSeconds]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -295,7 +338,12 @@ const Gallery = () => {
                     <div className="flex items-center justify-between mt-4">
                       <button
                         onClick={() => handleVote(video.id)}
-                        className="flex items-center gap-2 text-sm text-muted-foreground hover:text-pink-500 transition-colors"
+                        disabled={cooldownSeconds > 0 && !userVotedFor(video)}
+                        className={`flex items-center gap-2 text-sm transition-colors ${
+                          userVotedFor(video)
+                            ? "text-pink-500"
+                            : "text-muted-foreground hover:text-pink-500"
+                        } ${cooldownSeconds > 0 && !userVotedFor(video) ? 'cursor-not-allowed opacity-60' : ''}`}
                       >
                         <Heart
                           className={`h-5 w-5 ${
@@ -304,7 +352,13 @@ const Gallery = () => {
                               : ""
                           }`}
                         />
-                        <span>{video.votes.length}</span>
+                        <span>
+                          {userVotedFor(video)
+                            ? `${video.votes.length} votes`
+                            : cooldownSeconds > 0
+                            ? `Vote (${cooldownSeconds}s)`
+                            : video.votes.length}
+                        </span>
                       </button>
                       <div className="flex items-center gap-2">
                         <QRCodeGenerator
