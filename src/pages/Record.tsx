@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { RotateCcw, Check, ArrowLeft, Zap, Sparkles, Camera, Share2, Volume2, Mic } from "lucide-react";
+import { RotateCcw, Check, ArrowLeft, Zap, Sparkles, Camera, Share2, Volume2, Mic, ZoomIn, ZoomOut } from "lucide-react";
 import { AI_FILTERS, AIFilter } from "@/lib/filters";
 import { getLensConfig, CanvasVideoRecorder } from "@/lib/canvas-recorder";
 import { awardCredits, CREDIT_COSTS } from "@/lib/credits";
@@ -67,6 +67,11 @@ const Record = () => {
   const [durationWarning, setDurationWarning] = useState(false);
   const [sticker, setSticker] = useState<StickerMetadata>(DEFAULT_STICKERS[0]);
   const [isUploading, setIsUploading] = useState(false);
+  const [zoom, setZoom] = useState(1.0);
+  const [zoomOffset, setZoomOffset] = useState({ x: 0, y: 0 });
+  const [isPinching, setIsPinching] = useState(false);
+  const [initialDistance, setInitialDistance] = useState(0);
+  const [initialZoom, setInitialZoom] = useState(1.0);
 
   const MAX_DURATION = 60; // Snapchat 60-second limit
 
@@ -94,6 +99,13 @@ const Record = () => {
       setupRecorder();
     }
   }, [selectedFilter, facingMode, sticker]);
+
+  // Update zoom on recorder
+  useEffect(() => {
+    if (canvasRecorderRef.current) {
+      canvasRecorderRef.current.setZoom(zoom, zoomOffset.x, zoomOffset.y);
+    }
+  }, [zoom, zoomOffset]);
 
   const setupRecorder = () => {
     if (!streamRef.current) return;
@@ -205,6 +217,51 @@ const Record = () => {
     stopCamera();
     setFacingMode(facingMode === "user" ? "environment" : "user");
     setTimeout(startCamera, 300);
+  };
+
+  const handleZoomIn = () => {
+    setZoom(prev => Math.min(5.0, prev + 0.5));
+  };
+
+  const handleZoomOut = () => {
+    setZoom(prev => Math.max(1.0, prev - 0.5));
+  };
+
+  const resetZoom = () => {
+    setZoom(1.0);
+    setZoomOffset({ x: 0, y: 0 });
+  };
+
+  // Pinch gesture handlers
+  const getTouchDistance = (touches: TouchList) => {
+    if (touches.length < 2) return 0;
+    const dx = touches[0].clientX - touches[1].clientX;
+    const dy = touches[0].clientY - touches[1].clientY;
+    return Math.sqrt(dx * dx + dy * dy);
+  };
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (e.touches.length === 2) {
+      setIsPinching(true);
+      setInitialDistance(getTouchDistance(e.touches));
+      setInitialZoom(zoom);
+    }
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (isPinching && e.touches.length === 2) {
+      const currentDistance = getTouchDistance(e.touches);
+      if (initialDistance > 0) {
+        const scale = currentDistance / initialDistance;
+        const newZoom = Math.max(1.0, Math.min(5.0, initialZoom * scale));
+        setZoom(newZoom);
+      }
+    }
+  };
+
+  const handleTouchEnd = () => {
+    setIsPinching(false);
+    setInitialDistance(0);
   };
 
   const startRecording = () => {
@@ -533,6 +590,10 @@ const Record = () => {
           <canvas 
             ref={canvasRef}
             className="w-full h-full object-cover"
+            onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
+            style={{ touchAction: 'none' }} // Prevent default touch behaviors
           />
         )}
         
@@ -591,6 +652,9 @@ const Record = () => {
         {/* Bottom Controls */}
         <div className="pb-safe-offset-4 flex flex-col gap-8">
           
+          {/* Bottom Controls */}
+        <div className="pb-safe-offset-4 flex flex-col gap-8">
+          
           {/* Filter Carousel */}
           {recordingState === "idle" && (
             <motion.div 
@@ -639,12 +703,20 @@ const Record = () => {
               <div className="mt-4 rounded-3xl border border-white/10 bg-black/40 p-4">
                 <div className="flex items-center justify-between mb-3">
                   <div>
-                    <p className="text-xs uppercase tracking-[0.25em] text-white/60">Sticker Overlay</p>
-                    <p className="text-[10px] text-white/60">Snapchat-style sticker selection for the recording.</p>
+                    <p className="text-xs uppercase tracking-[0.25em] text-white/60">Zoom & Sticker Controls</p>
+                    <p className="text-[10px] text-white/60">Zoom: {zoom.toFixed(1)}x • Pinch to zoom on mobile</p>
                   </div>
-                  <Button variant="outline" size="sm" onClick={() => setSticker((prev) => ({ ...prev, visible: !prev.visible }))}>
-                    {sticker.visible ? "Hide" : "Show"}
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button variant="outline" size="sm" onClick={handleZoomOut} disabled={zoom <= 1.0}>
+                      <ZoomOut className="h-4 w-4" />
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={resetZoom}>
+                      1x
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={handleZoomIn} disabled={zoom >= 5.0}>
+                      <ZoomIn className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
 
                 <div className="flex gap-3 overflow-x-auto pb-2">

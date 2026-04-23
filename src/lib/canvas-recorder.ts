@@ -126,8 +126,10 @@ export class CanvasVideoRecorder {
   private filter: AIFilter;
   private facingMode: "user" | "environment";
   private faceTracker: FaceTracker | null = null;
-
   private sticker: StickerMetadata | null = null;
+  private zoom: number = 1.0;
+  private zoomOffsetX: number = 0;
+  private zoomOffsetY: number = 0;
 
   constructor(
     stream: MediaStream,
@@ -240,8 +242,23 @@ export class CanvasVideoRecorder {
       this.ctx.scale(-1, 1);
     }
 
-    // Draw video frame from camera
-    this.ctx.drawImage(this.videoEl, 0, 0, width, height);
+    // Apply zoom transformation
+    if (this.zoom > 1.0) {
+      const scaledWidth = width * this.zoom;
+      const scaledHeight = height * this.zoom;
+      const sourceX = (scaledWidth - width) / 2 + this.zoomOffsetX;
+      const sourceY = (scaledHeight - height) / 2 + this.zoomOffsetY;
+      
+      // Draw zoomed video frame from camera
+      this.ctx.drawImage(
+        this.videoEl, 
+        sourceX, sourceY, width, height,  // source rectangle
+        0, 0, width, height              // destination rectangle
+      );
+    } else {
+      // Draw video frame from camera (no zoom)
+      this.ctx.drawImage(this.videoEl, 0, 0, width, height);
+    }
     
     this.ctx.restore();
     
@@ -278,6 +295,16 @@ export class CanvasVideoRecorder {
 
   setSticker(sticker: StickerMetadata | null) {
     this.sticker = sticker;
+  }
+
+  setZoom(zoom: number, offsetX: number = 0, offsetY: number = 0) {
+    this.zoom = Math.max(1.0, Math.min(5.0, zoom)); // Clamp between 1x and 5x
+    this.zoomOffsetX = offsetX;
+    this.zoomOffsetY = offsetY;
+  }
+
+  getZoom(): number {
+    return this.zoom;
   }
 
   capturePhoto(quality: number = 0.95): string {
