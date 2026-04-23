@@ -15,7 +15,7 @@ This document provides instructions and templates for submitting the AI-Ready St
 
 ### Privacy & Security
 - Privacy Policy URL: https://dsconsortium.com/privacy
-- Terms of Service URL: https://dsconsortium.com/terms-and-conditions
+- Terms of Service URL: https://dsconsortium.com/terms
 - Contact Email: support@dsconsortium.org
 
 ---
@@ -152,7 +152,7 @@ The "Are You AI Ready?" campaign runs through November 2026, with monthly winner
 Positioned by DS Consortium to advance AI readiness across institutions globally.
 
 Privacy Policy: https://dsconsortium.com/privacy
-Terms of Service: https://dsconsortium.com/terms-and-conditions
+Terms of Service: https://dsconsortium.com/terms
 ```
 
 #### Category

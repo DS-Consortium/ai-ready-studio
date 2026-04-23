@@ -23,7 +23,7 @@ export const Footer = () => {
         },
         { label: "Prizes", href: "#" },
         { label: "FAQ", href: "https://dsconsortium.com/community", external: true },
-        { label: "Terms & Conditions", href: "https://dsconsortium.com/terms-and-conditions", external: true },
+        { label: "Terms & Conditions", href: "https://dsconsortium.com/terms", external: true },
       ],
     },
     {
