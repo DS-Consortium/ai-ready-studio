@@ -229,6 +229,9 @@ export class CanvasVideoRecorder {
   private drawLoop = async (previewCanvas?: HTMLCanvasElement) => {
     const { width, height } = this.canvas;
 
+    // Clear the canvas for fresh frame
+    this.ctx.clearRect(0, 0, width, height);
+
     this.ctx.save();
     
     // Mirror the feed if it's the front camera

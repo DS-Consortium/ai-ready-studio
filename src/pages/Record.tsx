@@ -265,6 +265,7 @@ const Record = () => {
   const resetRecording = () => {
     if (previewUrl) URL.revokeObjectURL(previewUrl);
     setRecordedBlob(null);
+    setCapturedPhoto(null);
     setPreviewUrl(null);
     setThumbnailUrl(null);
     setRecordingState("idle");
@@ -274,49 +275,71 @@ const Record = () => {
   };
 
   const handleSubmit = async () => {
-    if (!recordedBlob || !selectedFilter) return;
+    if ((!recordedBlob && !capturedPhoto) || !selectedFilter) return;
     setRecordingState("uploading");
     setIsUploading(true);
 
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
-        toast({ title: "Sign in required", description: "Please sign in to submit your video.", variant: "destructive" });
+        toast({ title: "Sign in required", description: "Please sign in to submit your content.", variant: "destructive" });
         navigate("/auth");
         return;
       }
 
-      const fileName = `${user.id}/${Date.now()}.webm`;
-      const { error: uploadError } = await supabase.storage.from("videos").upload(fileName, recordedBlob);
-      if (uploadError) throw uploadError;
-
-      const { data: { publicUrl } } = supabase.storage.from("videos").getPublicUrl(fileName);
+      let mediaUrl: string;
       let thumbnailPublicUrl: string | null = null;
+      let mediaType: 'video' | 'photo' = recordedBlob ? 'video' : 'photo';
 
-      if (thumbnailUrl) {
-        try {
-          const thumbBlob = await fetch(thumbnailUrl).then((res) => res.blob());
-          const thumbPath = `${user.id}/${Date.now()}-thumb.png`;
-          const { error: thumbError } = await supabase.storage.from("videos").upload(thumbPath, thumbBlob, {
-            contentType: "image/png",
-          });
-          if (!thumbError) {
-            const { data: { publicUrl: thumbUrl } } = supabase.storage.from("videos").getPublicUrl(thumbPath);
-            thumbnailPublicUrl = thumbUrl || null;
+      if (recordedBlob) {
+        // Handle video upload
+        const fileName = `${user.id}/${Date.now()}.webm`;
+        const { error: uploadError } = await supabase.storage.from("videos").upload(fileName, recordedBlob);
+        if (uploadError) throw uploadError;
+
+        const { data: { publicUrl } } = supabase.storage.from("videos").getPublicUrl(fileName);
+        mediaUrl = publicUrl;
+
+        // Create and upload thumbnail
+        if (thumbnailUrl) {
+          try {
+            const thumbBlob = await fetch(thumbnailUrl).then((res) => res.blob());
+            const thumbPath = `${user.id}/${Date.now()}-thumb.png`;
+            const { error: thumbError } = await supabase.storage.from("videos").upload(thumbPath, thumbBlob, {
+              contentType: "image/png",
+            });
+            if (!thumbError) {
+              const { data: { publicUrl: thumbUrl } } = supabase.storage.from("videos").getPublicUrl(thumbPath);
+              thumbnailPublicUrl = thumbUrl || null;
+            }
+          } catch (thumbError) {
+            console.warn("Thumbnail upload failed", thumbError);
           }
-        } catch (thumbError) {
-          console.warn("Thumbnail upload failed", thumbError);
         }
+      } else if (capturedPhoto) {
+        // Handle photo upload
+        const photoBlob = await fetch(capturedPhoto).then(res => res.blob());
+        const fileName = `${user.id}/${Date.now()}.jpg`;
+        const { error: uploadError } = await supabase.storage.from("videos").upload(fileName, photoBlob, {
+          contentType: "image/jpeg",
+        });
+        if (uploadError) throw uploadError;
+
+        const { data: { publicUrl } } = supabase.storage.from("videos").getPublicUrl(fileName);
+        mediaUrl = publicUrl;
+        thumbnailPublicUrl = mediaUrl; // Photo is its own thumbnail
+      } else {
+        throw new Error("No media to upload");
       }
 
       const { data: videoData, error: insertError } = await supabase.from("videos").insert({
         user_id: user.id,
         title: titleText || `${selectedFilter.shortName} Declaration`,
         description: descriptionText || null,
-        video_url: publicUrl,
+        video_url: mediaUrl,
         thumbnail_url: thumbnailPublicUrl,
         filter_id: selectedFilter.id,
-        duration_seconds: duration,
+        duration_seconds: recordedBlob ? duration : null,
         is_submitted: true,
       }).select().single();
 
@@ -339,7 +362,7 @@ const Record = () => {
 
         toast({ 
           title: "Content Review", 
-          description: moderationResult.reason || "Your video has been flagged for review.",
+          description: moderationResult.reason || "Your content has been flagged for review.",
           variant: "destructive" 
         });
       } else {
@@ -348,13 +371,13 @@ const Record = () => {
         }).eq("id", videoData.id);
 
         toast({ 
-          title: "Video approved!", 
+          title: mediaType === 'video' ? "Video approved!" : "Photo approved!", 
           description: "Your declaration has been approved and is now live!" 
         });
       }
 
       try {
-        await awardCredits(user.id, CREDIT_COSTS.DECLARATION_COMPLETION, 'Completed declaration video');
+        await awardCredits(user.id, CREDIT_COSTS.DECLARATION_COMPLETION, 'Completed declaration');
       } catch (creditErr) {
         console.warn('Could not award credits:', creditErr);
       }
@@ -369,22 +392,39 @@ const Record = () => {
   };
 
   const handleShare = async () => {
-    if (!recordedBlob || !selectedFilter) return;
+    if ((!recordedBlob && !capturedPhoto) || !selectedFilter) return;
     
     try {
-      const file = new File([recordedBlob], `${selectedFilter.shortName}-declaration.webm`, { type: "video/webm" });
-      if (navigator.share) {
-        await navigator.share({
-          files: [file],
-          title: 'My AI Declaration',
-          text: `I just declared my AI readiness as ${selectedFilter.shortName}! #IAmAIReady #DSCConsortium`,
-        });
-      } else {
-        const url = URL.createObjectURL(recordedBlob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `${selectedFilter.shortName}-declaration.webm`;
-        a.click();
+      if (recordedBlob) {
+        const file = new File([recordedBlob], `${selectedFilter.shortName}-declaration.webm`, { type: "video/webm" });
+        if (navigator.share) {
+          await navigator.share({
+            files: [file],
+            title: 'My AI Declaration',
+            text: `I just declared my AI readiness as ${selectedFilter.shortName}! #IAmAIReady #DSCConsortium`,
+          });
+        } else {
+          const url = URL.createObjectURL(recordedBlob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `${selectedFilter.shortName}-declaration.webm`;
+          a.click();
+        }
+      } else if (capturedPhoto) {
+        const photoBlob = await fetch(capturedPhoto).then(res => res.blob());
+        const file = new File([photoBlob], `${selectedFilter.shortName}-declaration.jpg`, { type: "image/jpeg" });
+        if (navigator.share) {
+          await navigator.share({
+            files: [file],
+            title: 'My AI Declaration',
+            text: `I just declared my AI readiness as ${selectedFilter.shortName}! #IAmAIReady #DSCConsortium`,
+          });
+        } else {
+          const a = document.createElement('a');
+          a.href = capturedPhoto;
+          a.download = `${selectedFilter.shortName}-declaration.jpg`;
+          a.click();
+        }
       }
     } catch (err) {
       console.error('Share error:', err);
@@ -392,7 +432,7 @@ const Record = () => {
   };
 
   const handleShareToSnapchat = async () => {
-    if (!recordedBlob || !selectedFilter) return;
+    if ((!recordedBlob && !capturedPhoto) || !selectedFilter) return;
 
     const payload: LensLaunchData = {
       lensId: selectedFilter.id,
@@ -476,14 +516,22 @@ const Record = () => {
       )}
       <div className="absolute inset-0 z-0">
         {recordingState === "preview" ? (
-          <video
-            ref={previewVideoRef}
-            src={previewUrl!}
-            className="w-full h-full object-cover"
-            autoPlay
-            loop
-            playsInline
-          />
+          recordedBlob ? (
+            <video
+              ref={previewVideoRef}
+              src={previewUrl!}
+              className="w-full h-full object-cover"
+              autoPlay
+              loop
+              playsInline
+            />
+          ) : capturedPhoto ? (
+            <img
+              src={capturedPhoto}
+              alt="Captured photo"
+              className="w-full h-full object-cover"
+            />
+          ) : null
         ) : (
           <canvas 
             ref={canvasRef}
@@ -665,21 +713,35 @@ const Record = () => {
 
             <div className="relative flex flex-col items-center gap-3">
               {recordingState === "idle" && (
-                <motion.button
-                  onMouseDown={startRecording}
-                  onTouchStart={startRecording}
-                  className="group relative w-28 h-28 flex items-center justify-center active:scale-75 transition-transform duration-150"
-                >
-                  <motion.div 
-                    animate={{ scale: [1, 1.1, 1] }}
-                    transition={{ duration: 2, repeat: Infinity }}
-                    className="absolute inset-0 rounded-full border-[4px] border-white/20" 
-                  />
-                  <div className="relative w-24 h-24 rounded-full bg-white shadow-[0_0_50px_rgba(255,255,255,0.3)]" />
-                  <div className="absolute -top-14 bg-black/60 backdrop-blur-sm text-white text-[10px] font-black px-4 py-2 rounded-full border border-white/20">
-                    HOLD TO RECORD
-                  </div>
-                </motion.button>
+                <>
+                  <motion.button
+                    onClick={capturePhoto}
+                    className="group relative w-20 h-20 flex items-center justify-center active:scale-75 transition-transform duration-150"
+                  >
+                    <div className="relative w-16 h-16 rounded-full bg-white/20 border-2 border-white/40 flex items-center justify-center">
+                      <Camera size={24} className="text-white" />
+                    </div>
+                    <div className="absolute -top-12 bg-black/60 backdrop-blur-sm text-white text-[10px] font-black px-3 py-1 rounded-full border border-white/20">
+                      PHOTO
+                    </div>
+                  </motion.button>
+                  
+                  <motion.button
+                    onMouseDown={startRecording}
+                    onTouchStart={startRecording}
+                    className="group relative w-28 h-28 flex items-center justify-center active:scale-75 transition-transform duration-150"
+                  >
+                    <motion.div 
+                      animate={{ scale: [1, 1.1, 1] }}
+                      transition={{ duration: 2, repeat: Infinity }}
+                      className="absolute inset-0 rounded-full border-[4px] border-white/20" 
+                    />
+                    <div className="relative w-24 h-24 rounded-full bg-white shadow-[0_0_50px_rgba(255,255,255,0.3)]" />
+                    <div className="absolute -top-14 bg-black/60 backdrop-blur-sm text-white text-[10px] font-black px-4 py-2 rounded-full border border-white/20">
+                      HOLD TO RECORD
+                    </div>
+                  </motion.button>
+                </>
               )}
 
               {recordingState === "recording" && (
