@@ -10,6 +10,7 @@
 import { AIFilter } from "@/lib/filters";
 import { FaceTracker } from './face-tracking';
 import { drawFaceHalo, drawFaceScan } from './ar-elements';
+import { StickerMetadata, drawStickerOverlay } from './sticker-system';
 
 export interface LensConfig {
   line1: string;
@@ -126,16 +127,20 @@ export class CanvasVideoRecorder {
   private facingMode: "user" | "environment";
   private faceTracker: FaceTracker | null = null;
 
+  private sticker: StickerMetadata | null = null;
+
   constructor(
     stream: MediaStream,
     filter: AIFilter,
     facingMode: "user" | "environment" = "user",
+    sticker: StickerMetadata | null = null,
     canvasWidth: number = 1080,
     canvasHeight: number = 1920
   ) {
     this.stream = stream;
     this.filter = filter;
     this.facingMode = facingMode;
+    this.sticker = sticker;
 
     // Create a hidden video element to draw frames from
     this.videoEl = document.createElement("video");
