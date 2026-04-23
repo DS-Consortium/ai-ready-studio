@@ -698,21 +698,56 @@ const Record = () => {
               </div>
 
               <div className="mt-4 rounded-3xl border border-white/10 bg-black/40 p-4">
-                <div className="flex items-center justify-between mb-3">
+<div className="flex flex-col gap-3 mb-3">
                   <div>
                     <p className="text-xs uppercase tracking-[0.25em] text-white/60">Zoom & Sticker Controls</p>
                     <p className="text-[10px] text-white/60">Zoom: {zoom.toFixed(1)}x • Pinch to zoom on mobile</p>
                   </div>
                   <div className="flex gap-2">
-                    <Button variant="outline" size="sm" onClick={handleZoomOut} disabled={zoom <= 1.0}>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={handleZoomOut}
+                      disabled={zoom <= 1.0}
+                      aria-label="Zoom out"
+                    >
                       <ZoomOut className="h-4 w-4" />
                     </Button>
-                    <Button variant="outline" size="sm" onClick={resetZoom}>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={resetZoom}
+                      aria-label="Reset zoom to 1x"
+                    >
                       1x
                     </Button>
-                    <Button variant="outline" size="sm" onClick={handleZoomIn} disabled={zoom >= 5.0}>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={handleZoomIn}
+                      disabled={zoom >= 5.0}
+                      aria-label="Zoom in"
+                    >
                       <ZoomIn className="h-4 w-4" />
                     </Button>
+                  </div>
+                  <div className="mt-2">
+                    <input
+                      type="range"
+                      min={1}
+                      max={5}
+                      step={0.1}
+                      value={zoom}
+                      aria-label="Zoom level"
+                      aria-valuemin={1}
+                      aria-valuemax={5}
+                      aria-valuenow={zoom}
+                      onChange={(e) => setZoom(Number(e.target.value))}
+                      className="w-full accent-primary"
+                    />
                   </div>
                 </div>
 
@@ -758,8 +793,10 @@ const Record = () => {
             {/* LEFT: Camera Toggle */}
             {recordingState === "idle" && (
               <motion.button 
+                type="button"
                 whileTap={{ scale: 0.85 }}
                 onClick={toggleCamera}
+                aria-label="Switch camera"
                 className="w-14 h-14 rounded-full bg-white/15 backdrop-blur-lg border-2 border-white/30 flex items-center justify-center"
               >
                 <SnapIcon icon={Camera} size={24} />
@@ -769,8 +806,10 @@ const Record = () => {
             {/* RIGHT: TTS Button */}
             {recordingState === "idle" && (
               <motion.button 
+                type="button"
                 whileTap={{ scale: 0.85 }}
                 onClick={() => synthesizeDeclaration(selectedFilter.shortName)}
+                aria-label="Play sample declaration aloud"
                 className="w-14 h-14 rounded-full bg-white/15 backdrop-blur-lg border-2 border-white/30 flex items-center justify-center"
               >
                 <SnapIcon icon={Volume2} size={24} />

@@ -111,31 +111,54 @@ const Gallery = () => {
       return;
     }
 
-    const video = videos.find((v) => v.id === videoId);
-    if (!video) return;
+    const session = await supabase.auth.getSession();
+    const accessToken = session.data.session?.access_token;
 
-    const existingVote = video.votes.find((vote) => vote.user_id === user.id);
-
-    if (existingVote) {
-      await supabase
-        .from("votes")
-        .delete()
-        .eq("id", existingVote.id);
-    } else {
-      const { error } = await supabase.from("votes").insert({
-        video_id: videoId,
-        user_id: user.id,
+    if (!accessToken) {
+      toast({
+        title: "Sign in required",
+        description: "Please sign in to vote for videos.",
+        variant: "destructive",
       });
-      if (error) {
-        console.error("Vote submission failed:", error);
-        toast({
-          title: "Vote failed",
-          description: error.message,
-          variant: "destructive",
-        });
-        return;
-      }
+      return;
+    }
+
+    const apiUrl = import.meta.env.VITE_API_URL
+      ? `${import.meta.env.VITE_API_URL.replace(/\/$/, '')}/api/votes`
+      : '/api/votes';
+
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify({ videoId }),
+    });
+
+    const result = await response.json().catch(() => ({ error: 'Unexpected response from server.' }));
+
+    if (!response.ok) {
+      console.error('Vote submission failed:', result);
+      toast({
+        title: response.status === 429 ? 'Vote rate limited' : 'Vote failed',
+        description: result.error || 'Unable to submit vote. Please try again.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (result.action === 'added') {
       setCooldownSeconds(VOTE_COOLDOWN_SECONDS);
+      toast({
+        title: 'Vote cast',
+        description: 'Your vote is recorded and helps your community leaderboard.',
+      });
+    } else if (result.action === 'removed') {
+      toast({
+        title: 'Vote removed',
+        description: 'Your vote has been withdrawn from this declaration.',
+      });
     }
 
     fetchVideos();
@@ -326,8 +349,10 @@ const Gallery = () => {
                     {/* Actions */}
                     <div className="flex items-center justify-between mt-4">
                       <button
+                        type="button"
                         onClick={() => handleVote(video.id)}
                         disabled={cooldownSeconds > 0 && !userVotedFor(video)}
+                        aria-label={userVotedFor(video) ? 'Remove vote' : 'Cast vote'}
                         className={`flex items-center gap-2 text-sm transition-colors ${
                           userVotedFor(video)
                             ? "text-pink-500"

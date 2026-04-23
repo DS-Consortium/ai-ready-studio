@@ -244,16 +244,26 @@ export class CanvasVideoRecorder {
 
     // Apply zoom transformation
     if (this.zoom > 1.0) {
-      const scaledWidth = width * this.zoom;
-      const scaledHeight = height * this.zoom;
-      const sourceX = (scaledWidth - width) / 2 + this.zoomOffsetX;
-      const sourceY = (scaledHeight - height) / 2 + this.zoomOffsetY;
-      
+      const videoWidth = this.videoEl.videoWidth || width;
+      const videoHeight = this.videoEl.videoHeight || height;
+      const sourceWidth = videoWidth / this.zoom;
+      const sourceHeight = videoHeight / this.zoom;
+      const maxX = Math.max(0, videoWidth - sourceWidth);
+      const maxY = Math.max(0, videoHeight - sourceHeight);
+      const sourceX = Math.min(Math.max(0, (videoWidth - sourceWidth) / 2 + this.zoomOffsetX), maxX);
+      const sourceY = Math.min(Math.max(0, (videoHeight - sourceHeight) / 2 + this.zoomOffsetY), maxY);
+
       // Draw zoomed video frame from camera
       this.ctx.drawImage(
-        this.videoEl, 
-        sourceX, sourceY, width, height,  // source rectangle
-        0, 0, width, height              // destination rectangle
+        this.videoEl,
+        sourceX,
+        sourceY,
+        sourceWidth,
+        sourceHeight,
+        0,
+        0,
+        width,
+        height
       );
     } else {
       // Draw video frame from camera (no zoom)

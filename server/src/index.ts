@@ -12,6 +12,7 @@ import stripeRoutes from './routes/stripe.routes.js';
 import notificationsRoutes from './routes/notifications.routes.js';
 import errorsRoutes from './routes/errors.routes.js';
 import ogRoutes from './routes/og.routes.js';
+import voteRoutes from './routes/votes.routes.js';
 import { verifyDatabaseSchema } from './db/schema-check.js';
 
 const app: Express = express();
@@ -95,6 +96,7 @@ app.use('/api/stripe', stripeRoutes);
 app.use('/api/notifications', notificationsRoutes);
 app.use('/api/errors', errorsRoutes);
 app.use('/api/og', ogRoutes);
+app.use('/api/votes', voteRoutes);
 
 // Root endpoint
 app.get('/', (req: Request, res: Response) => {
@@ -108,6 +110,7 @@ app.get('/', (req: Request, res: Response) => {
       notifications: '/api/notifications/*',
       errors: '/api/errors/*',
       og: '/api/og/*',
+      votes: '/api/votes',
     },
   });
 });
