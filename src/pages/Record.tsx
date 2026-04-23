@@ -819,16 +819,15 @@ const Record = () => {
                   onTouchEnd={stopRecording}
                   className="relative w-32 h-32 flex items-center justify-center"
                 >
-                  <motion.div 
+                  <motion.div
                     animate={{ scale: [1, 1.3], opacity: [1, 0] }}
                     transition={{ duration: 1.5, repeat: Infinity }}
-                    className="absolute inset-0 rounded-full border-[4px] border-red-600/60" 
+                    className="absolute inset-0 rounded-full border-[4px] border-red-600/60"
                   />
                   <div className="absolute inset-0 rounded-full border-[4px] border-red-600" />
-                    <div className="w-12 h-12 rounded-lg bg-red-600 shadow-lg" />
+                  <div className="w-12 h-12 rounded-lg bg-red-600 shadow-lg" />
                 </motion.button>
-              </>)
-            )}
+              )}
 
               {recordingState === "preview" && (
                 <div className="flex items-center gap-12 bg-black/40 backdrop-blur-xl px-8 py-6 rounded-[2rem] border border-white/20 shadow-2xl">
