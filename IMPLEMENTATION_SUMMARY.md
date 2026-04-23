@@ -26,7 +26,7 @@ All requested features have been implemented and committed. The app successfully
 - **Files Modified**: `src/components/EventsSection.tsx`
 - **Events**: 6 real events synced with correct capacity (25-50 spots)
 - **Sources**: Luma registration links, website data
-- **Result**: All events now align with https://legroupeds.com/events
+- **Result**: All events now align with https://dsconsortium.com/events
 
 ### 4. **Credits Pricing Overhaul** ✅
 - **Status**: Complete

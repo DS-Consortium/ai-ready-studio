@@ -18,11 +18,11 @@
 
 ### Company Branding
 - [x] Replace "LeGroupeDS" with "DS Consortium" everywhere
-- [x] Update URLs from legroupeds.com → legroupeds.com
+- [x] Update URLs from legroupeds.com → dsconsortium.com
 - [x] Consistent company name in all components
 
 ### Events Alignment
-- [x] Sync real events from website (https://legroupeds.com/events)
+- [x] Sync real events from website (https://dsconsortium.com/events)
 - [x] Correct capacity (25-50 spots, not 200-500)
 - [x] Accurate dates, locations, Luma registration links
 - [x] 6 upcoming seminars with verified details

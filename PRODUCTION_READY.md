@@ -405,7 +405,7 @@ a6f342d - docs: Add comprehensive implementation summary
 - **API Issues**: Check `API_DOCUMENTATION.md`
 - **Setup Issues**: Check `SETUP_GUIDE.md`
 - **Deployment**: See deployment section above
-- **Email**: support@legroupeds.com
+- **Email**: support@dsconsortium.com
 
 ---
 

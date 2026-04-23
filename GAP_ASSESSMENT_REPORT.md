@@ -57,8 +57,8 @@ MISSING: src/config/ds-consortium.ts or src/lib/ds-consortium-config.ts
 // PROPOSED: src/lib/ds-consortium-config.ts
 export const DS_CONSORTIUM = {
   name: 'DS Consortium',
-  website: 'https://legroupeds.com',
-  api: 'https://api.legroupeds.com',
+  website: 'https://dsconsortium.com',
+  api: 'https://api.dsconsortium.com',
   logo: require('@/assets/ds-consortium-logo.png'),
   colors: {
     primary: '#0066CC',
@@ -100,7 +100,7 @@ export const DS_CONSORTIUM = {
 
 // PROPOSED: src/lib/ds-consortium-sync.ts
 export async function syncEventsFromWebsite() {
-  const webEvents = await fetch('https://legroupeds.com/api/events');
+  const webEvents = await fetch('https://dsconsortium.com/api/events');
   const appEvents = supabase.from('events').select('*');
   
   // Compare and alert on mismatches

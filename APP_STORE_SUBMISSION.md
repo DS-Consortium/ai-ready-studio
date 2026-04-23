@@ -14,8 +14,8 @@ This document provides instructions and templates for submitting the AI-Ready St
 - **Languages:** English (and additional languages as needed)
 
 ### Privacy & Security
-- Privacy Policy URL: https://legroupeds.com/privacy
-- Terms of Service URL: https://legroupeds.com/terms-and-conditions
+- Privacy Policy URL: https://dsconsortium.com/privacy
+- Terms of Service URL: https://dsconsortium.com/terms-and-conditions
 - Contact Email: support@dsconsortium.org
 
 ---
@@ -74,12 +74,12 @@ AI, artificial intelligence, readiness, declaration, video, contest, community, 
 
 #### Support URL
 ```
-https://legroupeds.com/support
+https://dsconsortium.com/support
 ```
 
 #### Privacy Policy URL
 ```
-https://legroupeds.com/privacy
+https://dsconsortium.com/privacy
 ```
 
 ### Content Rating Questionnaire
@@ -151,8 +151,8 @@ The "Are You AI Ready?" campaign runs through November 2026, with monthly winner
 
 Positioned by DS Consortium to advance AI readiness across institutions globally.
 
-Privacy Policy: https://legroupeds.com/privacy
-Terms of Service: https://legroupeds.com/terms-and-conditions
+Privacy Policy: https://dsconsortium.com/privacy
+Terms of Service: https://dsconsortium.com/terms-and-conditions
 ```
 
 #### Category

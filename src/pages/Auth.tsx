@@ -23,7 +23,7 @@ const Auth = () => {
   const location = useLocation();
   const { toast } = useToast();
 
-  const MAIN_WEBSITE_URL = "https://legroupeds.com/auth";
+  const MAIN_WEBSITE_URL = "https://dsconsortium.com/auth";
   const LINKEDIN_CLIENT_ID = import.meta.env.VITE_LINKEDIN_CLIENT_ID;
   const REDIRECT_URI = `${window.location.origin}/auth`;
 
