@@ -82,11 +82,14 @@ interface VideoWithVotes extends AdminVideo {
   vote_count: number;
 }
 
-interface Winner {
+interface AuditLog {
   id: string;
-  video_id: string;
-  rank: number;
-  selected_at: string;
+  admin_user_id: string;
+  action_type: string;
+  target_type: string;
+  target_id: string | null;
+  details: any;
+  created_at: string;
 }
 
 const Admin = () => {
@@ -102,6 +105,7 @@ const Admin = () => {
   const [videos, setVideos] = useState<AdminVideo[]>([]);
   const [videosWithVotes, setVideosWithVotes] = useState<VideoWithVotes[]>([]);
   const [winners, setWinners] = useState<Winner[]>([]);
+  const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
   const [events, setEvents] = useState<AdminEvent[]>([]);
   const [discountCodes, setDiscountCodes] = useState<DiscountCode[]>([]);
   const [prizeDraws, setPrizeDraws] = useState<PrizeDraw[]>([]);
@@ -168,13 +172,14 @@ const Admin = () => {
   };
 
   const fetchAllData = async () => {
-    const [videosRes, eventsRes, codesRes, drawsRes, votesRes, winnersRes] = await Promise.all([
+    const [videosRes, eventsRes, codesRes, drawsRes, votesRes, winnersRes, auditRes] = await Promise.all([
       supabase.from("videos").select("*").order("created_at", { ascending: false }),
       supabase.from("events").select("*").order("event_date", { ascending: true }),
       supabase.from("discount_codes").select("*").order("created_at", { ascending: false }),
       supabase.from("prize_draws").select("*").order("draw_date", { ascending: true }),
       supabase.from("votes").select("video_id, count").eq("is_active", true),
       supabase.from("winners").select("*").order("rank", { ascending: true }),
+      supabase.from("audit_logs").select("*").order("created_at", { ascending: false }).limit(100),
     ]);
 
     if (videosRes.data) {
@@ -199,6 +204,7 @@ const Admin = () => {
     if (codesRes.data) setDiscountCodes(codesRes.data);
     if (drawsRes.data) setPrizeDraws(drawsRes.data);
     if (winnersRes.data) setWinners(winnersRes.data);
+    if (auditRes.data) setAuditLogs(auditRes.data);
   };
 
   const approveVideo = async (videoId: string, approve: boolean) => {
@@ -210,6 +216,14 @@ const Admin = () => {
     if (error) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     } else {
+      // Log the action
+      await supabase.rpc('log_admin_action', {
+        p_action_type: approve ? 'video_approve' : 'video_reject',
+        p_target_type: 'video',
+        p_target_id: videoId,
+        p_details: { approved: approve }
+      });
+
       toast({ title: approve ? "Video approved" : "Video rejected" });
       fetchAllData();
     }
@@ -221,6 +235,13 @@ const Admin = () => {
     if (error) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     } else {
+      // Log the action
+      await supabase.rpc('log_admin_action', {
+        p_action_type: 'video_delete',
+        p_target_type: 'video',
+        p_target_id: videoId
+      });
+
       toast({ title: "Video deleted" });
       fetchAllData();
     }
@@ -342,6 +363,17 @@ const Admin = () => {
     if (error) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     } else {
+      // Log the action
+      await supabase.rpc('log_admin_action', {
+        p_action_type: 'winner_select',
+        p_target_type: 'competition',
+        p_details: {
+          winner_count: topCount,
+          winner_video_ids: topVideos.map(v => v.id),
+          winner_ranks: winnersData.map(w => ({ video_id: w.video_id, rank: w.rank }))
+        }
+      });
+
       toast({ title: "Winners selected!", description: `Top ${topCount} videos selected as winners.` });
       fetchAllData();
     }
@@ -353,6 +385,12 @@ const Admin = () => {
     if (error) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     } else {
+      // Log the action
+      await supabase.rpc('log_admin_action', {
+        p_action_type: 'winner_clear',
+        p_target_type: 'competition'
+      });
+
       toast({ title: "Winners cleared" });
       fetchAllData();
     }
@@ -443,7 +481,7 @@ const Admin = () => {
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-5 mb-6">
+          <TabsList className="grid w-full grid-cols-6 mb-6">
             <TabsTrigger value="videos" className="gap-2">
               <Video className="h-4 w-4" />
               <span className="hidden sm:inline">Videos</span>
@@ -451,6 +489,10 @@ const Admin = () => {
             <TabsTrigger value="winners" className="gap-2">
               <Trophy className="h-4 w-4" />
               <span className="hidden sm:inline">Winners</span>
+            </TabsTrigger>
+            <TabsTrigger value="audit" className="gap-2">
+              <Eye className="h-4 w-4" />
+              <span className="hidden sm:inline">Audit</span>
             </TabsTrigger>
             <TabsTrigger value="events" className="gap-2">
               <Calendar className="h-4 w-4" />
@@ -552,6 +594,113 @@ const Admin = () => {
                 ))}
               </div>
             )}
+          </TabsContent>
+
+          {/* Winners Tab */}
+          <TabsContent value="winners" className="space-y-4">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-display text-xl font-semibold">Winner Selection</h2>
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={clearWinners} className="gap-2">
+                  <X className="h-4 w-4" />
+                  Clear Winners
+                </Button>
+                <Button onClick={() => selectWinners(3)} className="gap-2">
+                  <Trophy className="h-4 w-4" />
+                  Select Top 3
+                </Button>
+              </div>
+            </div>
+
+            {/* Current Winners */}
+            {winners.length > 0 && (
+              <div className="mb-6">
+                <h3 className="font-semibold mb-3">Current Winners</h3>
+                <div className="space-y-2">
+                  {winners.map((winner) => {
+                    const video = videos.find(v => v.id === winner.video_id);
+                    return (
+                      <div
+                        key={winner.id}
+                        className="flex items-center gap-4 p-4 rounded-xl border border-border bg-card"
+                      >
+                        <div className="text-2xl">
+                          {winner.rank === 1 ? "🥇" : winner.rank === 2 ? "🥈" : "🥉"}
+                        </div>
+                        <div className="w-16 h-12 rounded-lg bg-muted flex items-center justify-center overflow-hidden">
+                          {video?.thumbnail_url ? (
+                            <img
+                              src={video.thumbnail_url}
+                              alt={video.title}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <Play className="h-6 w-6 text-muted-foreground" />
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h4 className="font-medium truncate">{video?.title}</h4>
+                          <p className="text-sm text-muted-foreground">
+                            Rank #{winner.rank} • {format(new Date(winner.selected_at), "MMM d, yyyy")}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Vote Rankings */}
+            <div>
+              <h3 className="font-semibold mb-3">Vote Rankings (Approved Videos)</h3>
+              {videosWithVotes.length === 0 ? (
+                <div className="text-center py-12 border border-dashed border-border rounded-xl">
+                  <Trophy className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                  <p className="text-muted-foreground">No approved videos with votes yet</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {videosWithVotes.map((video, index) => (
+                    <div
+                      key={video.id}
+                      className="flex items-center gap-4 p-4 rounded-xl border border-border bg-card"
+                    >
+                      <div className="text-lg font-bold text-muted-foreground w-8">
+                        #{index + 1}
+                      </div>
+                      <div className="w-16 h-12 rounded-lg bg-muted flex items-center justify-center overflow-hidden">
+                        {video.thumbnail_url ? (
+                          <img
+                            src={video.thumbnail_url}
+                            alt={video.title}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <Play className="h-6 w-6 text-muted-foreground" />
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h4 className="font-medium truncate">{video.title}</h4>
+                        <p className="text-sm text-muted-foreground">
+                          {format(new Date(video.created_at), "MMM d, yyyy")}
+                          {video.filter_id && ` • ${video.filter_id}`}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="px-3 py-1 bg-primary/10 text-primary font-semibold rounded-full">
+                          {video.vote_count} votes
+                        </span>
+                        <QRCodeGenerator
+                          url={`${appUrl}/gallery?video=${video.id}`}
+                          title={video.title}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </TabsContent>
 
           {/* Events Tab */}
