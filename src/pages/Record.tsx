@@ -350,6 +350,8 @@ const Record = () => {
     } catch (err: any) {
       toast({ title: "Upload failed", description: err.message, variant: "destructive" });
       setRecordingState("preview");
+    } finally {
+      setIsUploading(false);
     }
   };
 
