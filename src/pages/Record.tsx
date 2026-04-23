@@ -10,6 +10,9 @@ import { useToast } from "@/hooks/use-toast";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { StickerMetadata, DEFAULT_STICKERS } from "@/lib/sticker-system";
+import { LensLaunchData, encodeLaunchData } from "@/lib/lens-parameters";
+import { shareToSnapchatCreativeKit } from "@/lib/snapchat-creative-kit";
 
 // Snapchat-style icon wrapper component
 const SnapIcon = ({ icon: Icon, size = 24, color = "white", filled = false }: { icon: any; size?: number; color?: string; filled?: boolean }) => (
@@ -55,6 +58,7 @@ const Record = () => {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [facingMode, setFacingMode] = useState<"user" | "environment">("user");
   const [durationWarning, setDurationWarning] = useState(false);
+  const [sticker, setSticker] = useState<StickerMetadata>(DEFAULT_STICKERS[0]);
 
   const MAX_DURATION = 60; // Snapchat 60-second limit
 
@@ -81,7 +85,7 @@ const Record = () => {
     if (streamRef.current && recordingState === "idle") {
       setupRecorder();
     }
-  }, [selectedFilter, facingMode]);
+  }, [selectedFilter, facingMode, sticker]);
 
   const setupRecorder = () => {
     if (!streamRef.current) return;
@@ -91,8 +95,8 @@ const Record = () => {
       canvasRecorderRef.current.cleanup();
     }
     
-    // Create new recorder
-    const recorder = new CanvasVideoRecorder(streamRef.current, selectedFilter, facingMode);
+    // Create new recorder with the active sticker overlay
+    const recorder = new CanvasVideoRecorder(streamRef.current, selectedFilter, facingMode, sticker.visible ? sticker : null);
     canvasRecorderRef.current = recorder;
     
     // Start preview loop
@@ -300,6 +304,23 @@ const Record = () => {
     }
   };
 
+  const handleShareToSnapchat = async () => {
+    if (!recordedBlob || !selectedFilter) return;
+
+    const payload: LensLaunchData = {
+      lensId: selectedFilter.id,
+      filterId: selectedFilter.id,
+      filterName: selectedFilter.shortName,
+      themeColor: getLensConfig(selectedFilter).color,
+      caption: `I declare ${selectedFilter.shortName} as my AI readiness filter.`,
+      sticker: sticker.visible ? sticker : undefined,
+      timestamp: Date.now(),
+    };
+
+    const launchData = encodeLaunchData(payload);
+    await shareToSnapchatCreativeKit({ caption: payload.caption, launchData });
+  };
+
   return (
     <div className="fixed inset-0 bg-black overflow-hidden flex flex-col font-sans">
       {/* ── Camera Preview Layer ── */}
@@ -419,6 +440,51 @@ const Record = () => {
                   );
                 })}
               </div>
+
+              <div className="mt-4 rounded-3xl border border-white/10 bg-black/40 p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <div>
+                    <p className="text-xs uppercase tracking-[0.25em] text-white/60">Sticker Overlay</p>
+                    <p className="text-[10px] text-white/60">Snapchat-style sticker selection for the recording.</p>
+                  </div>
+                  <Button variant="outline" size="sm" onClick={() => setSticker((prev) => ({ ...prev, visible: !prev.visible }))}>
+                    {sticker.visible ? "Hide" : "Show"}
+                  </Button>
+                </div>
+
+                <div className="flex gap-3 overflow-x-auto pb-2">
+                  {DEFAULT_STICKERS.map((option) => (
+                    <button
+                      key={option.id}
+                      onClick={() => setSticker({ ...option, visible: true })}
+                      className={`flex h-16 w-16 items-center justify-center rounded-3xl border transition-all duration-200 ${
+                        sticker.id === option.id ? "border-white bg-white/20" : "border-white/10 bg-white/5"
+                      }`}
+                    >
+                      <span className="text-2xl">{option.emoji}</span>
+                    </button>
+                  ))}
+                </div>
+
+                <div className="grid grid-cols-4 gap-2 mt-3 text-white/80 text-[11px]">
+                  <button
+                    onClick={() => setSticker((prev) => ({ ...prev, posY: Math.max(0.05, prev.posY - 0.05) }))}
+                    className="rounded-2xl bg-white/10 py-2"
+                  >Up</button>
+                  <button
+                    onClick={() => setSticker((prev) => ({ ...prev, posY: Math.min(0.95, prev.posY + 0.05) }))}
+                    className="rounded-2xl bg-white/10 py-2"
+                  >Down</button>
+                  <button
+                    onClick={() => setSticker((prev) => ({ ...prev, posX: Math.max(0.05, prev.posX - 0.05) }))}
+                    className="rounded-2xl bg-white/10 py-2"
+                  >Left</button>
+                  <button
+                    onClick={() => setSticker((prev) => ({ ...prev, posX: Math.min(0.95, prev.posX + 0.05) }))}
+                    className="rounded-2xl bg-white/10 py-2"
+                  >Right</button>
+                </div>
+              </div>
             </motion.div>
           )}
 
@@ -489,6 +555,15 @@ const Record = () => {
                       <SnapIcon icon={RotateCcw} size={24} />
                     </div>
                     <span className="text-[9px] font-black uppercase tracking-wider">Retake</span>
+                  </motion.button>
+
+                  <div className="w-px h-14 bg-white/20" />
+
+                  <motion.button onClick={handleShareToSnapchat} className="flex flex-col items-center gap-2 text-white group">
+                    <div className="p-3 bg-white/10 rounded-full group-hover:bg-yellow-300/20 transition-all border border-white/20">
+                      <SnapIcon icon={Sparkles} size={24} color="#FFFC00" />
+                    </div>
+                    <span className="text-[9px] font-black uppercase tracking-wider">Snapchat</span>
                   </motion.button>
 
                   <div className="w-px h-14 bg-white/20" />
