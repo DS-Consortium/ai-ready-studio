@@ -3,6 +3,8 @@ import { useNavigate, Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+import { getPaymentStatus, verifyPaymentCompletion } from "@/lib/stripe-integration";
 import { Button } from "@/components/ui/button";
 import QRCodeGenerator from "@/components/QRCodeGenerator";
 import {
@@ -219,6 +221,9 @@ const Dashboard = () => {
     leaderboardRank: "-",
   });
   const [isAdmin, setIsAdmin] = useState(false);
+  const [paymentStatusMessage, setPaymentStatusMessage] = useState<string | null>(null);
+  const [paymentStatusType, setPaymentStatusType] = useState<'success' | 'cancelled' | 'error' | null>(null);
+  const { toast } = useToast();
 
   useEffect(() => {
     if (!loading && !user) navigate("/auth");
@@ -229,8 +234,64 @@ const Dashboard = () => {
       fetchProfile();
       fetchVideos();
       checkAdminRole();
+      handlePaymentRedirect();
     }
   }, [user]);
+
+  const handlePaymentRedirect = async () => {
+    const { status, sessionId } = getPaymentStatus();
+    if (!status) return;
+
+    if (status === "success" && sessionId) {
+      setPaymentStatusType("success");
+      setPaymentStatusMessage("Your payment was successful. Verifying your credits...");
+
+      try {
+        const result = await verifyPaymentCompletion(sessionId);
+        if (result.success) {
+          setPaymentStatusMessage("Payment confirmed. Your credits will be updated shortly.");
+          toast({
+            title: "Payment completed",
+            description: "Your Stripe checkout was successful. Credits will appear once processing completes.",
+          });
+          await fetchProfile();
+          await fetchVideos();
+        } else {
+          setPaymentStatusType("error");
+          setPaymentStatusMessage("Payment succeeded in Stripe, but verification could not confirm completion.");
+          toast({
+            title: "Payment verification failed",
+            description: "Please contact support if your credits do not appear.",
+            variant: "destructive",
+          });
+        }
+      } catch (error: any) {
+        setPaymentStatusType("error");
+        setPaymentStatusMessage(error?.message || "Unable to verify payment status.");
+        toast({
+          title: "Payment check failed",
+          description: "There was a problem validating your checkout session.",
+          variant: "destructive",
+        });
+      } finally {
+        if (typeof window !== "undefined") {
+          window.history.replaceState({}, document.title, window.location.pathname);
+        }
+      }
+    }
+
+    if (status === "cancelled") {
+      setPaymentStatusType("cancelled");
+      setPaymentStatusMessage("Payment process was cancelled. You can try again any time.");
+      toast({
+        title: "Checkout cancelled",
+        description: "Your Stripe payment was not completed.",
+      });
+      if (typeof window !== "undefined") {
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
+    }
+  };
 
   const checkAdminRole = async () => {
     if (!user) return;
@@ -351,6 +412,21 @@ const Dashboard = () => {
       </nav>
 
       <main className="container px-6 py-8">
+        {paymentStatusMessage && (
+          <div className={`mb-8 rounded-3xl border p-4 text-sm ${
+            paymentStatusType === "success"
+              ? "bg-emerald-50 border-emerald-200 text-emerald-900"
+              : paymentStatusType === "error"
+              ? "bg-rose-50 border-rose-200 text-rose-900"
+              : "bg-amber-50 border-amber-200 text-amber-900"
+          }`}>
+            <strong className="block font-semibold mb-1">
+              {paymentStatusType === "success" ? "Payment completed" : paymentStatusType === "cancelled" ? "Checkout cancelled" : "Payment verification"}
+            </strong>
+            <p>{paymentStatusMessage}</p>
+          </div>
+        )}
+
         {/* ── Welcome Header ── */}
         <div className="mb-10">
           <h1 className="text-3xl md:text-4xl font-display font-black mb-2">

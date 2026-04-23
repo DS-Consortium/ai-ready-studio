@@ -8,6 +8,8 @@ export interface StripeCheckoutConfig {
   credits: number;
   price: number;
   customerEmail: string;
+  packId?: string;
+  description?: string;
 }
 
 /**
