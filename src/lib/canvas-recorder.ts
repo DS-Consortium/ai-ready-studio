@@ -280,6 +280,10 @@ export class CanvasVideoRecorder {
     this.sticker = sticker;
   }
 
+  capturePhoto(quality: number = 0.95): string {
+    return this.canvas.toDataURL("image/jpeg", quality);
+  }
+
   /**
    * Stop recording and return the blob
    */

@@ -251,14 +251,11 @@ const Record = () => {
   };
 
   const capturePhoto = () => {
-    if (!canvasRef.current) return;
-    
-    // Capture the current canvas state (which includes all overlays)
-    const photoDataUrl = canvasRef.current.toDataURL("image/jpeg", 0.95);
+    const photoDataUrl = canvasRecorderRef.current?.capturePhoto() || canvasRef.current?.toDataURL("image/jpeg", 0.95);
+    if (!photoDataUrl) return;
+
     setCapturedPhoto(photoDataUrl);
     setRecordingState("edit");
-    
-    // Create thumbnail from photo
     setThumbnailUrl(photoDataUrl);
   };
 
