@@ -4,6 +4,7 @@
  */
 import express, { Express, Request, Response, NextFunction } from 'express';
 import cors from 'cors';
+import rateLimit from 'express-rate-limit';
 import 'dotenv/config';
 
 import { config } from './config.js';
@@ -51,8 +52,16 @@ app.use((req: Request, res: Response, next: NextFunction) => {
   next();
 });
 
+// Rate limiter for health endpoint to prevent abuse of schema checks
+const healthRateLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 30, // limit each IP to 30 health checks per minute
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 // Health check endpoint
-app.get('/health', async (req: Request, res: Response) => {
+app.get('/health', healthRateLimiter, async (req: Request, res: Response) => {
   const base = {
     status: 'ok',
     timestamp: new Date().toISOString(),
