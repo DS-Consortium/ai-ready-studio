@@ -2,7 +2,9 @@ import { useState, useRef, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { RotateCcw, Check, ArrowLeft, Zap, Sparkles, Camera, Share2, Volume2, Mic, ZoomIn, ZoomOut } from "lucide-react";
 import { AI_FILTERS, AIFilter } from "@/lib/filters";
-import { getLensConfig, CanvasVideoRecorder } from "@/lib/canvas-recorder";
+import { getLensConfig } from "@/lib/canvas-recorder";
+import { CanvasCamera } from "@/lib/canvas-camera";
+import { usePinchZoom } from "@/hooks/usePinchZoom";
 import { awardCredits, CREDIT_COSTS } from "@/lib/credits";
 import { moderateVideo, moderateLocally, pollModerationStatus } from "@/lib/moderation";
 import { supabase } from "@/integrations/supabase/client";
@@ -67,19 +69,17 @@ const Record = () => {
   const [durationWarning, setDurationWarning] = useState(false);
   const [sticker, setSticker] = useState<StickerMetadata>(DEFAULT_STICKERS[0]);
   const [isUploading, setIsUploading] = useState(false);
-  const [zoom, setZoom] = useState(1.0);
+  const { zoom, setZoom, onTouchStart, onTouchMove, onTouchEnd, isPinching } = usePinchZoom({ initialZoom: 1, minZoom: 1, maxZoom: 5 });
   const [zoomOffset, setZoomOffset] = useState({ x: 0, y: 0 });
-  const [isPinching, setIsPinching] = useState(false);
-  const [initialDistance, setInitialDistance] = useState(0);
-  const [initialZoom, setInitialZoom] = useState(1.0);
+  const [captureMode, setCaptureMode] = useState<'video' | 'photo'>('video');
+  const [engineReady, setEngineReady] = useState(false);
 
   const MAX_DURATION = 60; // Snapchat 60-second limit
 
-  const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const previewVideoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
-  const canvasRecorderRef = useRef<CanvasVideoRecorder | null>(null);
+  const canvasRecorderRef = useRef<CanvasCamera | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const filterScrollRef = useRef<HTMLDivElement>(null);
 
